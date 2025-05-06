@@ -38,8 +38,7 @@ async def search_movie(client, message: Message):
         if query in title:
             results.append(f"https://t.me/{channel}/{msg_id}")
     if results:
-        await message.reply_text(f"Sorry, I couldn't find the movie '{movie_name}'.")
-await message.reply_text("Here are the matching movies:\n" + "\n".join(results))
+        await message.reply_text("Here are the matching movies:\n" + "\n".join(results))
     else:
         await message.reply_text("Sorry, no movie found.")
 
@@ -49,7 +48,7 @@ async def new_post(client, message: Message):
     if message.chat.username in CHANNELS and message.text:
         movie_db[message.text.lower()] = (message.chat.username, message.message_id)
 
-# Start bot and fill initial DB
+# Manual refresh command
 @bot.on_message(filters.command("refresh"))
 async def manual_refresh(client, message: Message):
     await update_db()
