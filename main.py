@@ -1,6 +1,15 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from flask import Flask
 import asyncio
+import threading
+
+# Flask app for Koyeb health checks
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
 
 # Bot credentials
 API_ID = 25424751
@@ -8,9 +17,9 @@ API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAE0ZnyAMKG1rtkYxMWwHwKOHtEBRQmsU3k"
 
 # Channels to monitor
-CHANNELS = ["stree2chaava2", "chaava2025"]  # without '@'
+CHANNELS = ["stree2chaava2", "chaava2025"]
 
-# In-memory database
+# In-memory movie database
 movie_db = {}
 
 # Create bot client
@@ -43,24 +52,29 @@ async def search_movie(client, message: Message):
     else:
         await message.reply_text("Sorry, no movie found.")
 
-# Auto update DB on new posts
+# Auto update on new posts
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     if message.chat.username in CHANNELS and message.text:
         movie_db[message.text.lower()] = (message.chat.username, message.message_id)
 
-# Manual refresh command
+# Manual refresh
 @bot.on_message(filters.command("refresh"))
 async def manual_refresh(client, message: Message):
     await update_db()
     await message.reply_text("Movie database refreshed.")
 
-# Start bot
-async def main():
-    await update_db()
-    print("Bot is ready.")
-    await bot.start()
-    await asyncio.Event().wait()  # keep the bot running
+# Run the bot in a thread
+def run_bot():
+    asyncio.run(start_bot())
 
+async def start_bot():
+    await bot.start()
+    await update_db()
+    print("Bot is running.")
+    await asyncio.Event().wait()
+
+# Start everything
 if __name__ == "__main__":
-    asyncio.run(main())
+    threading.Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=8000)
