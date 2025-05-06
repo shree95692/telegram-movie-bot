@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
+import asyncio
 
 # Bot credentials
 API_ID = 25424751
@@ -58,5 +59,8 @@ async def manual_refresh(client, message: Message):
 async def main():
     await update_db()
     print("Bot is ready.")
+    await bot.start()
+    await asyncio.Event().wait()  # keep the bot running
 
-bot.run()
+if __name__ == "__main__":
+    asyncio.run(main())
