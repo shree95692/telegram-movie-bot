@@ -38,7 +38,7 @@ async def search_movie(client, message: Message):
         if query in title:
             results.append(f"https://t.me/{channel}/{msg_id}")
     if results:
-        await message.reply_text("
+        await message.reply_text(f"Sorry, I couldn't find the movie '{movie_name}'.")
 ".join(results))
     else:
         await message.reply_text("Sorry, no movie found.")
