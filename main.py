@@ -1,12 +1,11 @@
-
 import logging
 from telethon.sync import TelegramClient, events
 
 # Configuration
-API_ID = 12345678  # Replace with your actual API ID
-API_HASH = "your_api_hash_here"  # Replace with your actual API hash
-BOT_TOKEN = "your_bot_token_here"  # Replace with your bot token
-CHANNEL_USERNAME = "@yourchannelusername"  # Replace with your channel username
+API_ID = 25424751
+API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
+BOT_TOKEN = "7073579407:AAE0ZnyAMKG1rtkYxMWwHwKOHtEBRQmsU3k"
+CHANNEL_USERNAME = "@stree2chaava2"
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +23,7 @@ async def start_handler(event):
 async def movie_search(event):
     query = event.raw_text.lower()
     async for message in bot.iter_messages(CHANNEL_USERNAME, search=query):
-        await event.respond(f"Found:
-{message.text}")
+        await event.respond(f"Found:\n{message.text}")
         break
     else:
         await event.respond("No results found.")
