@@ -30,7 +30,7 @@ async def update_db():
     global movie_db
     movie_db = {}
     for channel in CHANNELS:
-        async for message in bot.iter_history(channel):
+        async for message in bot.get_chat_history(channel):
             if message.text:
                 movie_db[message.text.lower()] = (channel, message.message_id)
 
