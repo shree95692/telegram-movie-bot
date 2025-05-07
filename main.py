@@ -15,10 +15,10 @@ def home():
 # Bot credentials
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"  # Updated token
+BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 
-# Channels to monitor
-CHANNELS = ["stree2chaava2", "chaava2025"]
+# Channels to monitor (with @ prefix)
+CHANNELS = ["@stree2chaava2", "@chaava2025"]
 
 # In-memory movie database
 movie_db = {}
@@ -43,19 +43,25 @@ async def search_movie(client, message: Message):
     results = []
     for title, (channel, msg_id) in movie_db.items():
         if query in title:
-            results.append(f"https://t.me/{channel}/{msg_id}")
+            results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
     if results:
         await message.reply_text("Here are the matching movies:\n" + "\n".join(results))
     else:
         await message.reply_text("Sorry, no movie found.")
 
-# Auto update on new posts
+# Auto update on new posts (text or caption)
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    if message.chat.username in CHANNELS and message.text:
-        title = extract_title(message.text)
+    text = message.text or message.caption
+    if text and f"@{message.chat.username}" in CHANNELS:
+        title = extract_title(text)
         if title:
-            movie_db[title] = (message.chat.username, message.message_id)
+            movie_db[title] = (f"@{message.chat.username}", message.message_id)
+            print(f"Added: {title} -> @{message.chat.username}/{message.message_id}")
+        else:
+            print("No title found in post.")
+    else:
+        print("Message ignored (not from allowed channels or no text).")
 
 # Run the bot in a thread
 def run_bot():
