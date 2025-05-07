@@ -46,7 +46,7 @@ async def new_post(client, message: Message):
     if chat_username in CHANNELS:
         title = extract_title(text)
         if title:
-            movie_db[title] = (chat_username, message.message_id)
+            movie_db[title] = (chat_username, message.id)
             print(f"Added: {title} -> {chat_username}/{message.message_id}")
         else:
             print("No valid title found.")
