@@ -20,8 +20,12 @@ movie_db = {}
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def extract_title(text):
-    match = re.search(r"(?i)🎬\s*Title\s*:\s*(.+)", text)
-    return match.group(1).strip().lower() if match else None
+    for line in text.splitlines():
+        if "title" in line.lower():
+            parts = re.split(r"[:\-–]", line, maxsplit=1)
+            if len(parts) > 1:
+                return parts[1].strip().lower()
+    return None
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
