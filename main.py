@@ -15,7 +15,7 @@ def home():
 # Bot credentials
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlJQY72F8lTmDXmXy2I"  # Updated token
+BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"  # Updated token
 
 # Channels to monitor
 CHANNELS = ["stree2chaava2", "chaava2025"]
