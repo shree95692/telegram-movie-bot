@@ -23,8 +23,7 @@ CHANNELS = ["stree2chaava2", "chaava2025"]
 movie_db = {}
 
 # Create bot client
-bot = Client("movie_search_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
+bot = Client(":memory:", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 # Start command
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
