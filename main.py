@@ -3,6 +3,7 @@ from pyrogram.types import Message
 from flask import Flask
 import asyncio
 import threading
+import re
 
 # Flask app for Koyeb health checks
 app = Flask(__name__)
@@ -24,10 +25,16 @@ movie_db = {}
 
 # Create bot client
 bot = Client(":memory:", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# Extract movie title from message text
+def extract_title(text):
+    match = re.search(r"🎬\s*Title\s*:\s*(.+?)(\n|$)", text, re.IGNORECASE)
+    return match.group(1).strip().lower() if match else None
+
 # Start command
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
-    await message.reply_text("Hi! Send me a movie name and I'll find the link from the channel's new posts.")
+    await message.reply_text("Hi! Send me a movie name and I'll find the link from the channels.")
 
 # Movie search
 @bot.on_message(filters.text & ~filters.command(["start"]))
@@ -46,7 +53,9 @@ async def search_movie(client, message: Message):
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     if message.chat.username in CHANNELS and message.text:
-        movie_db[message.text.lower()] = (message.chat.username, message.message_id)
+        title = extract_title(message.text)
+        if title:
+            movie_db[title] = (message.chat.username, message.message_id)
 
 # Run the bot in a thread
 def run_bot():
