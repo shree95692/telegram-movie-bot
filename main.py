@@ -15,7 +15,8 @@ API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097  # Correct private channel ID
+FORWARD_CHANNEL = -1002512169097
+ALERT_CHANNEL = -1002661392627  # Alert channel ID
 movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -26,7 +27,6 @@ def extract_title(text):
         clean_line = line.strip()
         lower_line = clean_line.lower()
 
-        # Check for keywords
         if any(keyword in lower_line for keyword in title_keywords):
             parts = re.split(r"[:\-–]", clean_line, maxsplit=1)
             if len(parts) > 1:
@@ -34,11 +34,9 @@ def extract_title(text):
                 if len(possible_title) >= 2:
                     return possible_title.lower()
 
-        # If line starts with emoji + short title (like 🎥 Swades)
         if re.match(r"^[\W_]+\s*[A-Za-z0-9]", clean_line) and len(clean_line.split()) <= 5:
             return clean_line.strip().lower()
 
-    # If message has only one non-empty line
     non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]
     if len(non_empty_lines) == 1:
         return non_empty_lines[0].strip().lower()
@@ -60,6 +58,10 @@ async def search_movie(client, message: Message):
         await message.reply_text("Here are the matching movies:\n" + "\n".join(results))
     else:
         await message.reply_text("Sorry, no movie found.")
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=f"❌ Movie not found for query: **{query}**\nFrom: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+        )
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
@@ -80,6 +82,10 @@ async def new_post(client, message: Message):
                 print("Forward failed:", e)
         else:
             print("No valid title found.")
+            await client.send_message(
+                chat_id=ALERT_CHANNEL,
+                text=f"❗ Title not found in post:\n\nhttps://t.me/{message.chat.username}/{message.id}"
+            )
     else:
         print("Post from untracked channel.")
 
