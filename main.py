@@ -1,137 +1,109 @@
-from pyrogram import Client, filters, idle
+from pyrogram import Client, filters
 from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
 import asyncio
 import re
 
-app = Flask(__name__)
+app = Flask(name)
 
 @app.route('/')
 def home():
-    return "Bot is running!"
+return "Bot is running!"
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097  # Must be bot admin
-ALERT_CHANNEL = -1002661392627    # Must be bot admin
-
+FORWARD_CHANNEL = -1002512169097  # For forwarding successful posts
+ALERT_CHANNEL = -1002661392627    # For alerts (not found or error)
 movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def extract_title(text):
-    title_keywords = ["title", "movie name"]
-    for line in text.splitlines():
-        clean_line = line.strip()
-        lower_line = clean_line.lower()
+title_keywords = ["title", "movie name"]
+for line in text.splitlines():
+clean_line = line.strip()
+lower_line = clean_line.lower()
 
-        if any(keyword in lower_line for keyword in title_keywords):
-            parts = re.split(r"[:\-–]", clean_line, maxsplit=1)
-            if len(parts) > 1:
-                possible_title = parts[1].strip()
-                if len(possible_title) >= 2:
-                    return possible_title.lower()
+if any(keyword in lower_line for keyword in title_keywords):  
+        parts = re.split(r"[:\-–]", clean_line, maxsplit=1)  
+        if len(parts) > 1:  
+            possible_title = parts[1].strip()  
+            if len(possible_title) >= 2:  
+                return possible_title.lower()  
 
-        if re.match(r"^[\W_]+\s*[A-Za-z0-9]", clean_line) and len(clean_line.split()) <= 5:
-            return clean_line.strip().lower()
+    if re.match(r"^[\W_]+\s*[A-Za-z0-9]", clean_line) and len(clean_line.split()) <= 5:  
+        return clean_line.strip().lower()  
 
-    non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]
-    if len(non_empty_lines) == 1:
-        return non_empty_lines[0].strip().lower()
+non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]  
+if len(non_empty_lines) == 1:  
+    return non_empty_lines[0].strip().lower()  
 
-    return None
+return None
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
-    await message.reply_text("Hello! Send me any movie name, and I will find it for you.")
+await message.reply_text("Hello! Send me any movie name, and I will find it for you.")
 
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
 async def search_movie(client, message: Message):
-    query = message.text.lower()
-    valid_results = []
+query = message.text.lower()
+valid_results = []
 
-    for title, (channel, msg_id) in movie_db.items():
-        if query in title:
-            try:
-                await client.get_messages(channel, msg_id)  # ensure message still exists
-                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-            except Exception as e:
-                print(f"Deleted or inaccessible message skipped: {e}")
-                continue
+for title, (channel, msg_id) in movie_db.items():  
+    if query in title:  
+        try:  
+            await client.get_messages(channel, msg_id)  
+            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")  
+        except:  
+            continue  # Post might be deleted, skip  
 
-    if valid_results:
-        await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
-    else:
-        await message.reply_text("Sorry, no movie found.")
-        try:
-            await client.send_message(
-                chat_id=ALERT_CHANNEL,
-                text=f"❌ Movie not found for query: **{query}**\nFrom: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
-            )
-        except Exception as e:
-            print(f"Failed to send alert: {e}")
+if valid_results:  
+    await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))  
+else:  
+    await message.reply_text("Sorry, no movie found.")  
+    await client.send_message(  
+        chat_id=ALERT_CHANNEL,  
+        text=f"❌ Movie not found for query: **{query}**\nFrom: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"  
+    )
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    text = (message.text or message.caption) or ""
-    chat_username = f"@{message.chat.username}"
+text = (message.text or message.caption) or ""
+chat_username = f"@{message.chat.username}"
 
-    if chat_username in CHANNELS:
-        title = extract_title(text)
-        if title:
-            movie_db[title] = (chat_username, message.id)
-            print(f"Added: {title} -> {chat_username}/{message.id}")
-
-            # Forward to success log channel
-            try:
-                await client.forward_messages(
-                    chat_id=FORWARD_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
-            except Exception as e:
-                print(f"Forward failed: {e}")
-                try:
-                    await client.send_message(
-                        chat_id=ALERT_CHANNEL,
-                        text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                    )
-                except:
-                    pass
-        else:
-            print("No valid title found.")
-            try:
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title not found in post:\nhttps://t.me/{message.chat.username}/{message.id}"
-                )
-            except:
-                pass
-    else:
-        print("Post from untracked channel.")
+if chat_username in CHANNELS:  
+    title = extract_title(text)  
+    if title:  
+        movie_db[title] = (chat_username, message.id)  
+        print(f"Added: {title} -> {chat_username}/{message.id}")  
+        try:  
+            await client.forward_messages(  
+                chat_id=FORWARD_CHANNEL,  
+                from_chat_id=message.chat.id,  
+                message_ids=[message.id]  
+            )  
+        except Exception as e:  
+            print("Forward failed:", e)  
+            await client.send_message(  
+                chat_id=ALERT_CHANNEL,  
+                text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"  
+            )  
+    else:  
+        print("No valid title found.")  
+        await client.send_message(  
+            chat_id=ALERT_CHANNEL,  
+            text=f"❗ Title not found in post:\n\nhttps://t.me/{message.chat.username}/{message.id}"  
+        )  
+else:  
+    print("Post from untracked channel.")
 
 def run_flask():
-    app.run(host="0.0.0.0", port=8000)
+app.run(host="0.0.0.0", port=8000)
 
-async def init_channels():
-    # ensure channel IDs are resolved
-    try:
-        await bot.get_chat(FORWARD_CHANNEL)
-        await bot.get_chat(ALERT_CHANNEL)
-        print("Channel IDs resolved successfully.")
-    except Exception as e:
-        print(f"Error resolving channel IDs: {e}")
+if name == "main":
+Thread(target=run_flask).start()
+bot.run()
 
-if __name__ == "__main__":
-    Thread(target=run_flask).start()
-
-    async def main():
-        await bot.start()
-        await init_channels()
-        await idle()
-        await bot.stop()
-
-    asyncio.run(main())
