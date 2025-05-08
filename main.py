@@ -53,12 +53,13 @@ async def search_movie(client, message: Message):
     valid_results = []
 
     for title, (channel, msg_id) in list(movie_db.items()):
-        if query in title:
-            try:
-                await client.get_messages(channel, msg_id)
-                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-            except:
-                del movie_db[title]  # हटाए गए पोस्ट को डेटाबेस से हटाएं
+    if query in title:
+        try:
+            await client.get_messages(channel, msg_id)
+            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+        except:
+            # If post is deleted, remove it from movie_db
+            movie_db.pop(title, None)
 
     if valid_results:
         await message.reply_text("यहाँ मिलती-जुलती मूवीज़ हैं:\n" + "\n".join(valid_results))
