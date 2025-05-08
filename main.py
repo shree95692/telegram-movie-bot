@@ -21,11 +21,28 @@ movie_db = {}
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def extract_title(text):
+    title_keywords = ["title", "movie name"]
     for line in text.splitlines():
-        if "title" in line.lower():
-            parts = re.split(r"[:\-–]", line, maxsplit=1)
+        clean_line = line.strip()
+        lower_line = clean_line.lower()
+
+        # Check for keywords
+        if any(keyword in lower_line for keyword in title_keywords):
+            parts = re.split(r"[:\-–]", clean_line, maxsplit=1)
             if len(parts) > 1:
-                return parts[1].strip().lower()
+                possible_title = parts[1].strip()
+                if len(possible_title) >= 2:
+                    return possible_title.lower()
+
+        # If line starts with emoji + short title (like 🎥 Swades)
+        if re.match(r"^[\W_]+\s*[A-Za-z0-9]", clean_line) and len(clean_line.split()) <= 5:
+            return clean_line.strip().lower()
+
+    # If message has only one non-empty line
+    non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if len(non_empty_lines) == 1:
+        return non_empty_lines[0].strip().lower()
+
     return None
 
 @bot.on_message(filters.command("start"))
