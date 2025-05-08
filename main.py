@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
@@ -15,8 +15,9 @@ API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097  # For forwarding successful posts
-ALERT_CHANNEL = -1002661392627    # For alerts (not found or error)
+FORWARD_CHANNEL = -1002512169097  # Must be bot admin
+ALERT_CHANNEL = -1002661392627    # Must be bot admin
+
 movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -55,19 +56,23 @@ async def search_movie(client, message: Message):
     for title, (channel, msg_id) in movie_db.items():
         if query in title:
             try:
-                await client.get_messages(channel, msg_id)
+                await client.get_messages(channel, msg_id)  # ensure message still exists
                 valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-            except:
-                continue  # Post might be deleted, skip
+            except Exception as e:
+                print(f"Deleted or inaccessible message skipped: {e}")
+                continue
 
     if valid_results:
         await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
     else:
         await message.reply_text("Sorry, no movie found.")
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=f"❌ Movie not found for query: **{query}**\nFrom: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
-        )
+        try:
+            await client.send_message(
+                chat_id=ALERT_CHANNEL,
+                text=f"❌ Movie not found for query: **{query}**\nFrom: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+            )
+        except Exception as e:
+            print(f"Failed to send alert: {e}")
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
@@ -79,6 +84,8 @@ async def new_post(client, message: Message):
         if title:
             movie_db[title] = (chat_username, message.id)
             print(f"Added: {title} -> {chat_username}/{message.id}")
+
+            # Forward to success log channel
             try:
                 await client.forward_messages(
                     chat_id=FORWARD_CHANNEL,
@@ -86,23 +93,45 @@ async def new_post(client, message: Message):
                     message_ids=[message.id]
                 )
             except Exception as e:
-                print("Forward failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+                print(f"Forward failed: {e}")
+                try:
+                    await client.send_message(
+                        chat_id=ALERT_CHANNEL,
+                        text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                    )
+                except:
+                    pass
         else:
             print("No valid title found.")
-            await client.send_message(
-                chat_id=ALERT_CHANNEL,
-                text=f"❗ Title not found in post:\n\nhttps://t.me/{message.chat.username}/{message.id}"
-            )
+            try:
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Title not found in post:\nhttps://t.me/{message.chat.username}/{message.id}"
+                )
+            except:
+                pass
     else:
         print("Post from untracked channel.")
 
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
+async def init_channels():
+    # ensure channel IDs are resolved
+    try:
+        await bot.get_chat(FORWARD_CHANNEL)
+        await bot.get_chat(ALERT_CHANNEL)
+        print("Channel IDs resolved successfully.")
+    except Exception as e:
+        print(f"Error resolving channel IDs: {e}")
+
 if __name__ == "__main__":
     Thread(target=run_flask).start()
-    bot.run()
+
+    async def main():
+        await bot.start()
+        await init_channels()
+        await idle()
+        await bot.stop()
+
+    asyncio.run(main())
