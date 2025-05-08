@@ -50,12 +50,20 @@ async def start_cmd(client, message: Message):
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
-    results = []
+    valid_results = []
+
     for title, (channel, msg_id) in movie_db.items():
         if query in title:
-            results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-    if results:
-        await message.reply_text("Here are the matching movies:\n" + "\n".join(results))
+            try:
+                # Check if message still exists in channel
+                await client.get_messages(channel, msg_id)
+                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            except:
+                # Skip if message no longer exists (likely deleted)
+                continue
+
+    if valid_results:
+        await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
     else:
         await message.reply_text("Sorry, no movie found.")
         await client.send_message(
