@@ -15,8 +15,8 @@ API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097
-ALERT_CHANNEL = -1002661392627  # Alert channel ID
+FORWARD_CHANNEL = -1002512169097  # For forwarding successful posts
+ALERT_CHANNEL = -1002661392627    # For alerts (not found or error)
 movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -55,12 +55,10 @@ async def search_movie(client, message: Message):
     for title, (channel, msg_id) in movie_db.items():
         if query in title:
             try:
-                # Check if message still exists in channel
                 await client.get_messages(channel, msg_id)
                 valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
             except:
-                # Skip if message no longer exists (likely deleted)
-                continue
+                continue  # Post might be deleted, skip
 
     if valid_results:
         await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
@@ -75,6 +73,7 @@ async def search_movie(client, message: Message):
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
     chat_username = f"@{message.chat.username}"
+
     if chat_username in CHANNELS:
         title = extract_title(text)
         if title:
@@ -88,6 +87,10 @@ async def new_post(client, message: Message):
                 )
             except Exception as e:
                 print("Forward failed:", e)
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                )
         else:
             print("No valid title found.")
             await client.send_message(
