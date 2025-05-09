@@ -61,7 +61,18 @@ def extract_title(text):
 async def start_cmd(client, message: Message):
     await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
 
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
+@bot.on_message(filters.command("register_alert"))
+async def register_alert(client, message: Message):
+    try:
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text="✅ Alert channel registered with bot successfully!"
+        )
+        await message.reply_text("Alert channel registered. Forwarding should now work.")
+    except Exception as e:
+        await message.reply_text(f"❌ Failed to register alert channel:\n{e}")
+
+@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
