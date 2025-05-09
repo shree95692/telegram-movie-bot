@@ -103,10 +103,6 @@ async def new_post(client, message: Message):
                     from_chat_id=message.chat.id,
                     message_ids=[message.id]
                 )
-                await client.send_message(
-                    chat_id=FORWARD_CHANNEL,
-                    text=f"✅ New movie added: {title}\nLink: https://t.me/{message.chat.username}/{message.id}"
-                )
             except Exception as e:
                 print("Forward failed:", e)
                 await client.send_message(
@@ -115,10 +111,18 @@ async def new_post(client, message: Message):
                 )
         else:
             print("Koi valid title nahi mila.")
-            await client.send_message(
-                chat_id=ALERT_CHANNEL,
-                text=f"❗ Title missing in post:\n\nhttps://t.me/{message.chat.username}/{message.id}"
-            )
+            try:
+                await client.forward_messages(
+                    chat_id=ALERT_CHANNEL,
+                    from_chat_id=message.chat.id,
+                    message_ids=[message.id]
+                )
+            except Exception as e:
+                print("Forward to alert failed:", e)
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Title missing and forward failed:\n\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                )
     else:
         print("Post is from unknown channel.")
 
