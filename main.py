@@ -55,14 +55,14 @@ async def search_movie(client, message: Message):
     valid_results = []
 
     for title, (channel, msg_id) in list(movie_db.items()):
-    try:
-        msg = await client.get_messages(channel, msg_id)
-        if not msg or (not msg.text and not msg.caption):
-            raise ValueError("Deleted or empty message")
-        if query in title:
-            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-    except:
-        movie_db.pop(title, None)  # Remove deleted/invalid posts
+        try:
+            msg = await client.get_messages(channel, msg_id)
+            if not msg or (not msg.text and not msg.caption):
+                raise ValueError("Deleted or empty message")
+            if query in title:
+                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+        except:
+            movie_db.pop(title, None)  # Remove deleted/invalid posts
 
     if valid_results:
         await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
