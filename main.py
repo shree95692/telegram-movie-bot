@@ -61,7 +61,7 @@ async def search_movie(client, message: Message):
             movie_db.pop(title, None)
 
     if valid_results:
-        await message.reply_text("यहाँ मिलती-जुलती मूवीज़ हैं:\n" + "\n".join(valid_results))
+        await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
     else:
         await message.reply_text("माफ़ कीजिए, कोई मूवी नहीं मिली।")
         await client.send_message(
