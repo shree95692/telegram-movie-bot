@@ -3,6 +3,8 @@ from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
 import re
+import json
+import os
 
 app = Flask(__name__)
 
@@ -16,9 +18,21 @@ BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
-movie_db = {}
+
+DB_FILE = "movie_db.json"
+
+# Load database from JSON
+if os.path.exists(DB_FILE):
+    with open(DB_FILE, "r") as f:
+        movie_db = json.load(f)
+else:
+    movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+def save_db():
+    with open(DB_FILE, "w") as f:
+        json.dump(movie_db, f)
 
 # Title extract karne ke liye
 def extract_title(text):
@@ -43,12 +57,10 @@ def extract_title(text):
 
     return None
 
-# Start command par response
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
     await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
 
-# Jab user movie name search karta hai
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
@@ -62,7 +74,8 @@ async def search_movie(client, message: Message):
             if query in title:
                 valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
         except:
-            movie_db.pop(title, None)  # Remove deleted/invalid posts
+            movie_db.pop(title, None)
+            save_db()
 
     if valid_results:
         await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
@@ -73,7 +86,6 @@ async def search_movie(client, message: Message):
             text=f"❌ Movie nahi mili: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
 
-# Jab naye post aate hai channel me
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
@@ -83,6 +95,7 @@ async def new_post(client, message: Message):
         title = extract_title(text)
         if title:
             movie_db[title] = (chat_username, message.id)
+            save_db()
             print(f"Added: {title} -> {chat_username}/{message.id}")
             try:
                 await client.forward_messages(
@@ -90,7 +103,6 @@ async def new_post(client, message: Message):
                     from_chat_id=message.chat.id,
                     message_ids=[message.id]
                 )
-                # Confirmation message
                 await client.send_message(
                     chat_id=FORWARD_CHANNEL,
                     text=f"✅ New movie added: {title}\nLink: https://t.me/{message.chat.username}/{message.id}"
@@ -110,11 +122,9 @@ async def new_post(client, message: Message):
     else:
         print("Post is from unknown channel.")
 
-# Flask app ko alag thread me run karo
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
-# Bot aur server start karo
 if __name__ == "__main__":
     Thread(target=run_flask).start()
     bot.run()
