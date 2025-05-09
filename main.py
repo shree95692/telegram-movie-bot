@@ -2,7 +2,6 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
-import asyncio
 import re
 
 app = Flask(__name__)
@@ -15,12 +14,13 @@ API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAG-5z0cmNFYdNlUdlJQY72F8lTmDXmXy2I"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097  # सुनिश्चित करें कि बॉट इस चैनल का सदस्य है
-ALERT_CHANNEL = -1002661392627    # सुनिश्चित करें कि बॉट इस चैनल का सदस्य है
+FORWARD_CHANNEL = -1002512169097
+ALERT_CHANNEL = -1002661392627
 movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Title extract karne ke liye
 def extract_title(text):
     title_keywords = ["title", "movie name"]
     for line in text.splitlines():
@@ -43,33 +43,36 @@ def extract_title(text):
 
     return None
 
+# Start command par response
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
-    await message.reply_text("Hi! Send me any movie name and I will try to find it for you.")
+    await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
+
+# Jab user movie name search karta hai
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
 
     for title, (channel, msg_id) in list(movie_db.items()):
-    if query in title:
-        try:
-            for title, (channel, msg_id) in list(movie_db.items()):
-    if query in title:
-        try:
-            await client.get_messages(channel, msg_id)
-            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-        except:
-            movie_db.pop(title, None)
+        if query in title:
+            try:
+                await client.get_messages(channel, msg_id)
+                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            except:
+                # Agar post delete ho chuki hai to usse database se hata do
+                movie_db.pop(title, None)
+
     if valid_results:
-        await message.reply_text("Here are the matching movies:\n" + "\n".join(valid_results))
+        await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
     else:
-        await message.reply_text("माफ़ कीजिए, कोई मूवी नहीं मिली।")
+        await message.reply_text("Sorry, koi movie nahi mili.")
         await client.send_message(
             chat_id=ALERT_CHANNEL,
-            text=f"❌ मूवी नहीं मिली: **{query}**\nउपयोगकर्ता: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+            text=f"❌ Movie nahi mili: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
 
+# Jab naye post aate hai channel me
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
@@ -79,36 +82,38 @@ async def new_post(client, message: Message):
         title = extract_title(text)
         if title:
             movie_db[title] = (chat_username, message.id)
-            print(f"जोड़ा गया: {title} -> {chat_username}/{message.id}")
+            print(f"Added: {title} -> {chat_username}/{message.id}")
             try:
                 await client.forward_messages(
                     chat_id=FORWARD_CHANNEL,
                     from_chat_id=message.chat.id,
                     message_ids=[message.id]
                 )
-                # पुष्टि संदेश भेजें
+                # Confirmation message
                 await client.send_message(
                     chat_id=FORWARD_CHANNEL,
-                    text=f"✅ नई मूवी जोड़ी गई: {title}\nलिंक: https://t.me/{message.chat.username}/{message.id}"
+                    text=f"✅ New movie added: {title}\nLink: https://t.me/{message.chat.username}/{message.id}"
                 )
             except Exception as e:
-                print("अग्रेषण विफल:", e)
+                print("Forward failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ पोस्ट अग्रेषित करने में विफल:\nhttps://t.me/{message.chat.username}/{message.id}\nत्रुटि: {e}"
+                    text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-            print("कोई वैध शीर्षक नहीं मिला।")
+            print("Koi valid title nahi mila.")
             await client.send_message(
                 chat_id=ALERT_CHANNEL,
-                text=f"❗ पोस्ट में शीर्षक नहीं मिला:\n\nhttps://t.me/{message.chat.username}/{message.id}"
+                text=f"❗ Title missing in post:\n\nhttps://t.me/{message.chat.username}/{message.id}"
             )
     else:
-        print("अज्ञात चैनल से पोस्ट।")
+        print("Post is from unknown channel.")
 
+# Flask app ko alag thread me run karo
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
+# Bot aur server start karo
 if __name__ == "__main__":
     Thread(target=run_flask).start()
     bot.run()
