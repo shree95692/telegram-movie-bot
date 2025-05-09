@@ -21,7 +21,6 @@ ALERT_CHANNEL = -1002661392627
 
 DB_FILE = "movie_db.json"
 
-# Load database from JSON
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
         movie_db = json.load(f)
@@ -34,7 +33,6 @@ def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(movie_db, f)
 
-# Title extract karne ke liye
 def extract_title(text):
     title_keywords = ["title", "movie name"]
     for line in text.splitlines():
@@ -72,7 +70,26 @@ async def register_alert(client, message: Message):
     except Exception as e:
         await message.reply_text(f"❌ Failed to register alert channel:\n{e}")
 
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert"]))
+@bot.on_message(filters.command("init_channels"))
+async def init_channels(client, message: Message):
+    errors = []
+
+    try:
+        await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
+    except Exception as e:
+        errors.append(f"❌ Forward channel error:\n{e}")
+
+    try:
+        await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
+    except Exception as e:
+        errors.append(f"❌ Alert channel error:\n{e}")
+
+    if errors:
+        await message.reply_text("\n\n".join(errors))
+    else:
+        await message.reply_text("✅ Both channels initialized successfully.")
+
+@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
