@@ -45,8 +45,7 @@ def extract_title(text):
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
-    await message.reply_text("नमस्ते! मुझे कोई भी मूवी का नाम भेजें, मैं उसे खोजने की कोशिश करूंगा।")
-
+    await message.reply_text("Hi! Send me any movie name and I will try to find it for you.")
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
