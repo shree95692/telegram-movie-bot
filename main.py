@@ -34,24 +34,26 @@ def save_db():
         json.dump(movie_db, f)
 
 def extract_title(text):
-    title_keywords = ["title", "movie name"]
-    for line in text.splitlines():
-        clean_line = line.strip()
-        lower_line = clean_line.lower()
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return None
 
-        if any(keyword in lower_line for keyword in title_keywords):
-            parts = re.split(r"[:\-–]", clean_line, maxsplit=1)
-            if len(parts) > 1:
-                possible_title = parts[1].strip()
-                if len(possible_title) >= 2:
-                    return possible_title.lower()
+    # Look for lines with title keywords
+    for line in lines:
+        lower_line = line.lower()
+        if any(k in lower_line for k in ["title", "movie", "name", "film"]):
+            parts = re.split(r"[:\-–]", line, maxsplit=1)
+            if len(parts) > 1 and len(parts[1].strip()) >= 2:
+                return parts[1].strip().lower()
 
-        if re.match(r"^[\W_]+\s*[A-Za-z0-9]", clean_line) and len(clean_line.split()) <= 5:
-            return clean_line.strip().lower()
+    # Fallback: use the first line if it's short
+    if 1 <= len(lines[0].split()) <= 8:
+        return lines[0].lower()
 
-    non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]
-    if len(non_empty_lines) == 1:
-        return non_empty_lines[0].strip().lower()
+    # As a last resort, pick any short line (likely title)
+    for line in lines:
+        if 1 <= len(line.split()) <= 6:
+            return line.lower()
 
     return None
 
