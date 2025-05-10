@@ -140,19 +140,28 @@ async def new_post(client, message: Message):
                     text=f"❌ Title extracted but save/forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-            print("Title not found. Sending to alert.")
-            try:
-                await client.forward_messages(
-                    chat_id=ALERT_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
-            except Exception as e:
-                print("Alert forward failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing & alert forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+    print("Title not found. Sending to alert with message.")
+    try:
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=(
+                f"⚠️ **Title extract nahi ho paya**\n\n"
+                f"Please check the post manually: [Link to Post](https://t.me/{message.chat.username}/{message.id})\n"
+                f"**Reason:** Title extract function failed. Kripya title clearly mention karein."
+            ),
+            disable_web_page_preview=True
+        )
+        await client.forward_messages(
+            chat_id=ALERT_CHANNEL,
+            from_chat_id=message.chat.id,
+            message_ids=[message.id]
+        )
+    except Exception as e:
+        print("Alert forward failed:", e)
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=f"❗ Title missing & forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+        )
     except Exception as outer_e:
         print("Unexpected error in new_post handler:", outer_e)
         await client.send_message(
