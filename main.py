@@ -37,24 +37,17 @@ def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
-
-    # Look for lines with title keywords
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return parts[1].strip().lower()
-
-    # Fallback: use the first line if it's short
     if 1 <= len(lines[0].split()) <= 8:
         return lines[0].lower()
-
-    # As a last resort, pick any short line (likely title)
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
-
     return None
 
 @bot.on_message(filters.command("start"))
@@ -75,17 +68,14 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
-
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
         errors.append(f"❌ Forward channel error:\n{e}")
-
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
     except Exception as e:
         errors.append(f"❌ Alert channel error:\n{e}")
-
     if errors:
         await message.reply_text("\n\n".join(errors))
     else:
@@ -95,7 +85,6 @@ async def init_channels(client, message: Message):
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
-
     for title, (channel, msg_id) in list(movie_db.items()):
         try:
             msg = await client.get_messages(channel, msg_id)
@@ -106,7 +95,6 @@ async def search_movie(client, message: Message):
         except:
             movie_db.pop(title, None)
             save_db()
-
     if valid_results:
         await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
     else:
@@ -120,13 +108,13 @@ async def search_movie(client, message: Message):
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
     chat_username = f"@{message.chat.username}"
-
     if chat_username in CHANNELS:
         title = extract_title(text)
         if title and len(title.strip()) >= 2:
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
+            if title not in movie_db:
+                movie_db[title] = (chat_username, message.id)
+                save_db()
+                print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
             try:
                 await client.forward_messages(
                     chat_id=FORWARD_CHANNEL,
@@ -140,7 +128,7 @@ async def new_post(client, message: Message):
                     text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-            print("No title extracted from post. Not saved in DB.")
+            print("No title extracted from post. Sending to alert channel only.")
             try:
                 await client.forward_messages(
                     chat_id=ALERT_CHANNEL,
@@ -148,7 +136,7 @@ async def new_post(client, message: Message):
                     message_ids=[message.id]
                 )
             except Exception as e:
-                print("Forward to alert failed:", e)
+                print("Alert forward failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
                     text=f"❗ Title missing and forward failed:\n\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
