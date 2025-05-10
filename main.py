@@ -112,10 +112,14 @@ async def search_movie(client, message: Message):
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    text = (message.text or message.caption) or ""
-    chat_username = f"@{message.chat.username}"
+    try:
+        text = (message.text or message.caption) or ""
+        chat_username = f"@{message.chat.username}" if message.chat.username else None
 
-    if chat_username in CHANNELS:
+        if chat_username not in CHANNELS:
+            print("Post is from unknown channel.")
+            return
+
         title = extract_title(text)
         print(f"[DEBUG] Extracted title: {title}")
 
@@ -147,10 +151,14 @@ async def new_post(client, message: Message):
                 print("Alert forward failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing & forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                    text=f"❗ Title missing & alert forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
-    else:
-        print("Post is from unknown channel.")
+    except Exception as outer_e:
+        print("Unexpected error in new_post handler:", outer_e)
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=f"‼️ Unexpected error while processing message:\nError: {outer_e}"
+        )
 
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
