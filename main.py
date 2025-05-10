@@ -5,6 +5,7 @@ from threading import Thread
 import re
 import json
 import os
+from difflib import get_close_matches
 
 app = Flask(__name__)
 
@@ -37,18 +38,26 @@ def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
+
+    def clean_line(line):
+        return re.sub(r'[^\w\s]', '', line).strip().lower()
+
+    # Prefer title-like formatting
     for line in lines:
-        lower_line = line.lower()
-        if any(k in lower_line for k in ["title", "movie", "name", "film"]):
+        if line.istitle() or line == line.upper():
+            cleaned = clean_line(line)
+            if 1 <= len(cleaned.split()) <= 8:
+                return cleaned
+
+    # Look for title indicators
+    for line in lines:
+        lower = line.lower()
+        if any(k in lower for k in ["title", "movie", "film", "name"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1 and len(parts[1].strip()) >= 2:
-                return parts[1].strip().lower()
-    if 1 <= len(lines[0].split()) <= 8:
-        return lines[0].lower()
-    for line in lines:
-        if 1 <= len(line.split()) <= 6:
-            return line.lower()
-    return None
+            if len(parts) > 1:
+                return clean_line(parts[1])
+
+    return clean_line(lines[0])
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
@@ -83,18 +92,21 @@ async def init_channels(client, message: Message):
 
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
 async def search_movie(client, message: Message):
-    query = message.text.lower()
+    query = message.text.lower().strip()
     valid_results = []
-    for title, (channel, msg_id) in list(movie_db.items()):
+    all_titles = list(movie_db.keys())
+    matches = get_close_matches(query, all_titles, n=5, cutoff=0.6)
+
+    for match in matches:
+        channel, msg_id = movie_db[match]
         try:
             msg = await client.get_messages(channel, msg_id)
-            if not msg or (not msg.text and not msg.caption):
-                raise ValueError("Deleted or empty message")
-            if query in title:
+            if msg and (msg.text or msg.caption):
                 valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
         except:
-            movie_db.pop(title, None)
+            movie_db.pop(match, None)
             save_db()
+
     if valid_results:
         await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
     else:
@@ -108,6 +120,7 @@ async def search_movie(client, message: Message):
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
     chat_username = f"@{message.chat.username}"
+
     if chat_username in CHANNELS:
         title = extract_title(text)
         if title and len(title.strip()) >= 2:
@@ -128,7 +141,7 @@ async def new_post(client, message: Message):
                     text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-            print("No title extracted from post. Sending to alert channel only.")
+            print("No title extracted from post.")
             try:
                 await client.forward_messages(
                     chat_id=ALERT_CHANNEL,
@@ -136,10 +149,10 @@ async def new_post(client, message: Message):
                     message_ids=[message.id]
                 )
             except Exception as e:
-                print("Alert forward failed:", e)
+                print("Forward to alert failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing and forward failed:\n\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                    text=f"❗ Title missing and forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
     else:
         print("Post is from unknown channel.")
