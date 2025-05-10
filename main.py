@@ -38,7 +38,6 @@ def extract_title(text):
     if not lines:
         return None
 
-    # Look for lines with title keywords
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
@@ -46,11 +45,9 @@ def extract_title(text):
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return parts[1].strip().lower()
 
-    # Fallback: use the first line if it's short
     if 1 <= len(lines[0].split()) <= 8:
         return lines[0].lower()
 
-    # As a last resort, pick any short line (likely title)
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
@@ -64,11 +61,8 @@ async def start_cmd(client, message: Message):
 @bot.on_message(filters.command("register_alert"))
 async def register_alert(client, message: Message):
     try:
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text="✅ Alert channel registered with bot successfully!"
-        )
-        await message.reply_text("Alert channel registered. Forwarding should now work.")
+        await client.send_message(ALERT_CHANNEL, "✅ Alert channel registered successfully!")
+        await message.reply_text("Alert channel registered.")
     except Exception as e:
         await message.reply_text(f"❌ Failed to register alert channel:\n{e}")
 
@@ -91,7 +85,8 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
+# Only allow movie search in private chat to prevent spam
+@bot.on_message(filters.private & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
@@ -118,33 +113,43 @@ async def search_movie(client, message: Message):
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    text = (message.text or message.caption or "").strip()
+    text = (message.text or message.caption) or ""
     chat_username = f"@{message.chat.username}"
 
     if chat_username in CHANNELS:
-        if not text:
-            print("Empty message, forwarding to alert.")
-            target_channel = ALERT_CHANNEL
-        else:
-            title = extract_title(text)
-            if title and len(title.strip()) >= 2:
-                if title not in movie_db:
-                    movie_db[title] = (chat_username, message.id)
-                    save_db()
-                    print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
-                target_channel = FORWARD_CHANNEL
-            else:
-                print("No title extracted. Forwarding to alert channel.")
-                target_channel = ALERT_CHANNEL
+        title = extract_title(text)
+        print(f"[DEBUG] Extracted title: {title}")
 
-        try:
-            await client.forward_messages(
-                chat_id=target_channel,
-                from_chat_id=message.chat.id,
-                message_ids=[message.id]
-            )
-        except Exception as e:
-            print(f"Forwarding failed: {e}")
+        if title and len(title.strip()) >= 2:
+            movie_db[title] = (chat_username, message.id)
+            save_db()
+            print(f"Saved title: {title} -> {chat_username}/{message.id}")
+            try:
+                await client.forward_messages(
+                    chat_id=FORWARD_CHANNEL,
+                    from_chat_id=message.chat.id,
+                    message_ids=[message.id]
+                )
+            except Exception as e:
+                print("Forward failed:", e)
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                )
+        else:
+            print("Title not found. Sending to alert.")
+            try:
+                await client.forward_messages(
+                    chat_id=ALERT_CHANNEL,
+                    from_chat_id=message.chat.id,
+                    message_ids=[message.id]
+                )
+            except Exception as e:
+                print("Alert forward failed:", e)
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Title missing & forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                )
     else:
         print("Post is from unknown channel.")
 
