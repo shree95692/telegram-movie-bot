@@ -121,15 +121,35 @@ async def new_post(client, message: Message):
         print(f"[DEBUG] Extracted title: {title}")
 
         if title and len(title.strip()) >= 2:
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            print(f"Saved title: {title} -> {chat_username}/{message.id}")
-            try:
-                await client.forward_messages(
-                    chat_id=FORWARD_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
+    try:
+        movie_db[title] = (chat_username, message.id)
+        save_db()
+        print(f"Saved title: {title} -> {chat_username}/{message.id}")
+        await client.forward_messages(
+            chat_id=FORWARD_CHANNEL,
+            from_chat_id=message.chat.id,
+            message_ids=[message.id]
+        )
+    except Exception as e:
+        print("Save or forward failed:", e)
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=f"❌ Title extracted but save/forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+        )
+else:
+    print("Title not found. Sending to alert.")
+    try:
+        await client.forward_messages(
+            chat_id=ALERT_CHANNEL,
+            from_chat_id=message.chat.id,
+            message_ids=[message.id]
+        )
+    except Exception as e:
+        print("Alert forward failed:", e)
+        await client.send_message(
+            chat_id=ALERT_CHANNEL,
+            text=f"❗ Title missing & alert forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+        )
             except Exception as e:
                 print("Forward failed:", e)
                 await client.send_message(
