@@ -118,41 +118,33 @@ async def search_movie(client, message: Message):
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    text = (message.text or message.caption) or ""
+    text = (message.text or message.caption or "").strip()
     chat_username = f"@{message.chat.username}"
 
     if chat_username in CHANNELS:
-        title = extract_title(text)
-        if title and len(title.strip()) >= 2:
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
-            try:
-                await client.forward_messages(
-                    chat_id=FORWARD_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
-            except Exception as e:
-                print("Forward failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+        if not text:
+            print("Empty message, forwarding to alert.")
+            target_channel = ALERT_CHANNEL
         else:
-            print("No title extracted from post. Not saved in DB.")
-            try:
-                await client.forward_messages(
-                    chat_id=ALERT_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
-            except Exception as e:
-                print("Forward to alert failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing and forward failed:\n\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+            title = extract_title(text)
+            if title and len(title.strip()) >= 2:
+                if title not in movie_db:
+                    movie_db[title] = (chat_username, message.id)
+                    save_db()
+                    print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
+                target_channel = FORWARD_CHANNEL
+            else:
+                print("No title extracted. Forwarding to alert channel.")
+                target_channel = ALERT_CHANNEL
+
+        try:
+            await client.forward_messages(
+                chat_id=target_channel,
+                from_chat_id=message.chat.id,
+                message_ids=[message.id]
+            )
+        except Exception as e:
+            print(f"Forwarding failed: {e}")
     else:
         print("Post is from unknown channel.")
 
