@@ -38,19 +38,24 @@ def extract_title(text):
     if not lines:
         return None
 
+    def clean_text(s):
+        return re.sub(r'[^\w\s\-:\'"]', '', s)
+
+    # Look for keyword-based titles
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1 and len(parts[1].strip()) >= 2:
-                return parts[1].strip().lower()
+            if len(parts) > 1:
+                title = clean_text(parts[1].strip())
+                if 2 <= len(title.split()) <= 12:
+                    return title.lower()
 
-    if 1 <= len(lines[0].split()) <= 8:
-        return lines[0].lower()
-
+    # Fallback: first clean, valid line
     for line in lines:
-        if 1 <= len(line.split()) <= 6:
-            return line.lower()
+        clean_line = clean_text(line)
+        if 1 <= len(clean_line.split()) <= 8 and not clean_line.lower().startswith(("uploaded", "resolution", "language", "genre")):
+            return clean_line.lower()
 
     return None
 
@@ -112,14 +117,10 @@ async def search_movie(client, message: Message):
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
-    try:
-        text = (message.text or message.caption) or ""
-        chat_username = f"@{message.chat.username}" if message.chat.username else None
+    text = (message.text or message.caption) or ""
+    chat_username = f"@{message.chat.username}"
 
-        if chat_username not in CHANNELS:
-            print("Post is from unknown channel.")
-            return
-
+    if chat_username in CHANNELS:
         title = extract_title(text)
         print(f"[DEBUG] Extracted title: {title}")
 
@@ -140,34 +141,20 @@ async def new_post(client, message: Message):
                     text=f"❌ Title extracted but save/forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-    print("Title not found. Sending to alert with message.")
-    try:
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=(
-                f"⚠️ **Title extract nahi ho paya**\n\n"
-                f"Please check the post manually: [Link to Post](https://t.me/{message.chat.username}/{message.id})\n"
-                f"**Reason:** Title extract function failed. Kripya title clearly mention karein."
-            ),
-            disable_web_page_preview=True
-        )
-        await client.forward_messages(
-            chat_id=ALERT_CHANNEL,
-            from_chat_id=message.chat.id,
-            message_ids=[message.id]
-        )
-    except Exception as e:
-        print("Alert forward failed:", e)
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=f"❗ Title missing & forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-        )
-    except Exception as outer_e:
-        print("Unexpected error in new_post handler:", outer_e)
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=f"‼️ Unexpected error while processing message:\nError: {outer_e}"
-        )
+            print("Title not found. Sending to alert.")
+            try:
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"⚠️ **Title extract nahi ho paya:**\nhttps://t.me/{message.chat.username}/{message.id}\n**Kripya title ko sahi karein!**"
+                )
+            except Exception as e:
+                print("Alert forward failed:", e)
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Title missing & alert failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                )
+    else:
+        print("Post is from unknown channel.")
 
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
