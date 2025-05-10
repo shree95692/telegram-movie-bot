@@ -14,7 +14,7 @@ def home():
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"  # Updated & safe token
+BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
@@ -85,7 +85,6 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-# Only allow movie search in private chat to prevent spam
 @bot.on_message(filters.private & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
@@ -121,40 +120,20 @@ async def new_post(client, message: Message):
         print(f"[DEBUG] Extracted title: {title}")
 
         if title and len(title.strip()) >= 2:
-    try:
-        movie_db[title] = (chat_username, message.id)
-        save_db()
-        print(f"Saved title: {title} -> {chat_username}/{message.id}")
-        await client.forward_messages(
-            chat_id=FORWARD_CHANNEL,
-            from_chat_id=message.chat.id,
-            message_ids=[message.id]
-        )
-    except Exception as e:
-        print("Save or forward failed:", e)
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=f"❌ Title extracted but save/forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-        )
-else:
-    print("Title not found. Sending to alert.")
-    try:
-        await client.forward_messages(
-            chat_id=ALERT_CHANNEL,
-            from_chat_id=message.chat.id,
-            message_ids=[message.id]
-        )
-    except Exception as e:
-        print("Alert forward failed:", e)
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text=f"❗ Title missing & alert forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-        )
+            try:
+                movie_db[title] = (chat_username, message.id)
+                save_db()
+                print(f"Saved title: {title} -> {chat_username}/{message.id}")
+                await client.forward_messages(
+                    chat_id=FORWARD_CHANNEL,
+                    from_chat_id=message.chat.id,
+                    message_ids=[message.id]
+                )
             except Exception as e:
-                print("Forward failed:", e)
+                print("Save or forward failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ Forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                    text=f"❌ Title extracted but save/forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
             print("Title not found. Sending to alert.")
