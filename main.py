@@ -5,7 +5,7 @@ from threading import Thread
 import re
 import json
 import os
-import difflib  # Fuzzy matching added
+import difflib  # <- Added for fuzzy matching
 
 app = Flask(__name__)
 
@@ -39,6 +39,7 @@ def extract_title(text):
     if not lines:
         return None
 
+    # Look for lines with title keywords
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
@@ -46,9 +47,11 @@ def extract_title(text):
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return parts[1].strip().lower()
 
+    # Fallback: use the first line if it's short
     if 1 <= len(lines[0].split()) <= 8:
         return lines[0].lower()
 
+    # As a last resort, pick any short line (likely title)
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
@@ -94,10 +97,11 @@ async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
 
+    # Fuzzy search logic added below (only this part is changed)
     all_titles = list(movie_db.keys())
-    close_matches = difflib.get_close_matches(query, all_titles, n=5, cutoff=0.6)
+    matches = difflib.get_close_matches(query, all_titles, n=5, cutoff=0.6)
 
-    for title in close_matches:
+    for title in matches:
         channel, msg_id = movie_db[title]
         try:
             msg = await client.get_messages(channel, msg_id)
@@ -109,7 +113,7 @@ async def search_movie(client, message: Message):
             save_db()
 
     if valid_results:
-        await message.reply_text("Yeh rahe closest matching movies:\n" + "\n".join(valid_results))
+        await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
     else:
         await message.reply_text("Sorry, koi movie nahi mili.")
         await client.send_message(
