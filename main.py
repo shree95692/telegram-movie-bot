@@ -5,6 +5,7 @@ from threading import Thread
 import re
 import json
 import os
+import difflib  # Fuzzy matching added
 
 app = Flask(__name__)
 
@@ -38,7 +39,6 @@ def extract_title(text):
     if not lines:
         return None
 
-    # Look for lines with title keywords
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
@@ -46,11 +46,9 @@ def extract_title(text):
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return parts[1].strip().lower()
 
-    # Fallback: use the first line if it's short
     if 1 <= len(lines[0].split()) <= 8:
         return lines[0].lower()
 
-    # As a last resort, pick any short line (likely title)
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
@@ -96,19 +94,22 @@ async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
 
-    for title, (channel, msg_id) in list(movie_db.items()):
+    all_titles = list(movie_db.keys())
+    close_matches = difflib.get_close_matches(query, all_titles, n=5, cutoff=0.6)
+
+    for title in close_matches:
+        channel, msg_id = movie_db[title]
         try:
             msg = await client.get_messages(channel, msg_id)
             if not msg or (not msg.text and not msg.caption):
                 raise ValueError("Deleted or empty message")
-            if query in title:
-                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
         except:
             movie_db.pop(title, None)
             save_db()
 
     if valid_results:
-        await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
+        await message.reply_text("Yeh rahe closest matching movies:\n" + "\n".join(valid_results))
     else:
         await message.reply_text("Sorry, koi movie nahi mili.")
         await client.send_message(
