@@ -20,7 +20,6 @@ BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
-ALLOWED_USER_ID = 5163916480  # For /show_db
 
 DB_FILE = "movie_db.json"
 
@@ -46,7 +45,7 @@ def extract_title(text):
 
     for line in lines:
         if any(k in line.lower() for k in ["title", "movie", "name", "film"]):
-            parts = re.split(r"[:\-\u2013]", line, maxsplit=1)
+            parts = re.split(r"[:\-–]", line, maxsplit=1)
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return clean_text(parts[1])
 
@@ -74,10 +73,12 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
+
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
         errors.append(f"❌ Forward channel error:\n{e}")
+
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
     except Exception as e:
@@ -88,25 +89,9 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-@bot.on_message(filters.command("show_db"))
-async def show_db(client, message: Message):
-    if message.from_user.id != ALLOWED_USER_ID:
-        await message.reply_text("❌ Access denied.")
-        return
-
-    db_text = json.dumps(movie_db, indent=2)
-    if len(db_text) > 4000:
-        with open("movie_db_temp.json", "w") as f:
-            f.write(db_text)
-        await message.reply_document("movie_db_temp.json")
-        os.remove("movie_db_temp.json")
-    else:
-        await message.reply_text(f"`{db_text}`", parse_mode="markdown")
-
-@bot.on_message(filters.text & ~filters.command(["start", "register_alert", "init_channels", "show_db"]))
+@bot.on_message(filters.private & filters.text)
 async def search_movie(client, message: Message):
-    if message.chat.type not in ["private", "group", "supergroup"]:
-        return
+    print(f"[DEBUG] Received message: {message.text}")
 
     query = clean_text(message.text)
     results = []
