@@ -18,7 +18,7 @@ API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 
-CHANNELS = ["@stree2chaava2", "@chaava2025"]
+# Replace with your real private channel IDs (negative integers)
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
 
@@ -104,10 +104,10 @@ async def search_movie(client, message: Message):
     for title, data in list(movie_db.items()):
         try:
             if is_similar(query, title):
-                channel = data.get("channel", "").strip("@")
+                channel_id = data.get("channel")
                 msg_id = data.get("msg_id")
-                if channel and msg_id:
-                    results.append(f"https://t.me/{channel}/{msg_id}")
+                if channel_id and msg_id:
+                    results.append(f"https://t.me/c/{str(channel_id)[4:]}/{msg_id}")
         except Exception:
             movie_db.pop(title, None)
             save_db()
@@ -116,9 +116,9 @@ async def search_movie(client, message: Message):
         await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(results))
     else:
         await message.reply_text("Sorry, koi movie nahi mili.")
-        user = message.from_user
-        user_info = f"[{user.first_name}](tg://user?id={user.id})" if user else "Unknown User"
         try:
+            user = message.from_user
+            user_info = f"[{user.first_name}](tg://user?id={user.id})" if user else "Unknown User"
             await client.send_message(
                 chat_id=ALERT_CHANNEL,
                 text=f"❌ Movie nahi mili: **{message.text}**\nUser: {user_info}"
@@ -129,15 +129,13 @@ async def search_movie(client, message: Message):
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption or "")
-    chat_username = f"@{message.chat.username}" if message.chat.username else None
+    title = extract_title(text)
+    print(f"[DEBUG] Extracted title: {title}")
 
-    if chat_username in CHANNELS:
-        title = extract_title(text)
-        print(f"[DEBUG] Extracted title: {title}")
-
+    if message.chat.id in [FORWARD_CHANNEL, ALERT_CHANNEL]:
         if title and len(title) >= 2:
             movie_db[title] = {
-                "channel": chat_username,
+                "channel": message.chat.id,
                 "msg_id": message.id
             }
             save_db()
@@ -148,26 +146,18 @@ async def new_post(client, message: Message):
                     message_ids=[message.id]
                 )
             except Exception as e:
-                try:
-                    await client.send_message(
-                        chat_id=ALERT_CHANNEL,
-                        text=f"❌ Save/forward failed for: https://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                    )
-                except:
-                    print(f"[ERROR] Cannot send alert: {e}")
-        else:
-            try:
-                await client.forward_messages(
-                    chat_id=ALERT_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title extraction failed for post: https://t.me/{message.chat.username}/{message.id}"
+                    text=f"❌ Save/forward failed for post ID {message.id}\nError: {e}"
+                )
+        else:
+            try:
+                await client.send_message(
+                    chat_id=ALERT_CHANNEL,
+                    text=f"❗ Title extraction failed for post ID {message.id}"
                 )
             except Exception as e:
-                print(f"[ERROR] Alert failed: {e}")
+                print(f"[ERROR] Alert send failed: {e}")
     else:
         print("Post is from unknown channel.")
 
