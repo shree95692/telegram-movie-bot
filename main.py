@@ -40,18 +40,24 @@ def clean_text(text):
 
 def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if not lines:
-        return None
+    candidates = []
 
     for line in lines:
-        if any(k in line.lower() for k in ["title", "movie", "name", "film"]):
+        # Skip known junk/quality/resolution lines
+        if any(q in line.lower() for q in ["480p", "720p", "1080p", "hdrip", "bluray", "web-dl", "hevc"]):
+            continue
+
+        # Prioritize lines with keywords
+        if any(k in line.lower() for k in ["title", "movie", "film", "name"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return clean_text(parts[1])
 
-    for line in lines:
         if 1 <= len(line.split()) <= 8:
-            return clean_text(line)
+            candidates.append(line)
+
+    if candidates:
+        return clean_text(candidates[0])
 
     return None
 
@@ -120,8 +126,9 @@ async def new_post(client, message: Message):
     chat_username = f"@{message.chat.username}"
 
     if chat_username in CHANNELS:
+        print(f"[TEXT] {text}")
         title = extract_title(text)
-        print(f"[DEBUG] Extracted title: {title}")
+        print(f"[TITLE] {title}")
 
         if title and len(title) >= 2:
             movie_db[title] = (chat_username, message.id)
