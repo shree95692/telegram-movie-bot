@@ -20,6 +20,7 @@ BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
+OWNER_ID = 5761333274  # <-- Replace with your Telegram ID
 
 DB_FILE = "movie_db.json"
 
@@ -92,7 +93,36 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-@bot.on_message(filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
+@bot.on_message(filters.command("show_db"))
+async def show_db(client, message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.reply_text("⛔ You are not authorized to view the DB.")
+        return
+
+    if not movie_db:
+        await message.reply_text("📁 Database is empty.")
+        return
+
+    response = "📦 **Movie DB:**\n"
+    count = 0
+    for title, data in movie_db.items():
+        if isinstance(data, dict):
+            channel = data.get("channel", "").strip("@")
+            msg_id = data.get("msg_id")
+        elif isinstance(data, list) and len(data) == 2:
+            channel, msg_id = data[0].strip("@"), data[1]
+        else:
+            continue
+        url = f"https://t.me/{channel}/{msg_id}"
+        response += f"• `{title}` → [link]({url})\n"
+        count += 1
+        if count >= 20:
+            response += "\n...aur bhi entries hain."
+            break
+
+    await message.reply_text(response, disable_web_page_preview=True)
+
+@bot.on_message(filters.text & ~filters.command(["start", "register_alert", "init_channels", "show_db"]))
 async def search_movie(client, message: Message):
     if message.chat.type not in ["private", "group", "supergroup"]:
         return
@@ -103,11 +133,18 @@ async def search_movie(client, message: Message):
     for title, data in list(movie_db.items()):
         try:
             if is_similar(query, title):
-                channel = data.get("channel", "").strip("@")
-                msg_id = data.get("msg_id")
+                if isinstance(data, dict):
+                    channel = data.get("channel", "").strip("@")
+                    msg_id = data.get("msg_id")
+                elif isinstance(data, list) and len(data) == 2:
+                    channel, msg_id = data[0].strip("@"), data[1]
+                else:
+                    continue
+
                 if channel and msg_id:
                     results.append(f"https://t.me/{channel}/{msg_id}")
-        except Exception:
+        except Exception as e:
+            print(f"[ERROR] While checking title match: {e}")
             movie_db.pop(title, None)
             save_db()
 
