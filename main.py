@@ -39,7 +39,6 @@ def extract_title(text):
     if not lines:
         return None
 
-    # Look for lines with title keywords
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
@@ -47,11 +46,9 @@ def extract_title(text):
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return parts[1].strip().lower()
 
-    # Fallback: use the first line if it's short
     if 1 <= len(lines[0].split()) <= 8:
         return lines[0].lower()
 
-    # As a last resort, pick any short line (likely title)
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
@@ -120,9 +117,15 @@ async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
 
-    # Fuzzy search logic added below (only this part is changed)
+    def similarity(a, b):
+        return difflib.SequenceMatcher(None, a, b).ratio()
+
     all_titles = list(movie_db.keys())
-    matches = difflib.get_close_matches(query, all_titles, n=5, cutoff=0.6)
+    matches = sorted(
+        [title for title in all_titles if similarity(query, title) > 0.5],
+        key=lambda t: similarity(query, t),
+        reverse=True
+    )[:5]
 
     for title in matches:
         channel, msg_id = movie_db[title]
