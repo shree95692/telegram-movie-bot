@@ -92,7 +92,30 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
+@bot.on_message(filters.command("scan_channel"))
+async def scan_channel(client, message: Message):
+    await message.reply_text("Scanning channels... This may take a while.")
+    count = 0
+    skipped = 0
+
+    for channel in CHANNELS:
+        try:
+            async for msg in client.get_chat_history(channel, limit=1000):
+                text = (msg.text or msg.caption) or ""
+                title = extract_title(text)
+                if title and len(title.strip()) >= 2:
+                    if title not in movie_db:
+                        movie_db[title] = (channel, msg.id)
+                        count += 1
+                    else:
+                        skipped += 1
+        except Exception as e:
+            await message.reply_text(f"Error scanning {channel}:\n{e}")
+
+    save_db()
+    await message.reply_text(f"Scan complete!\nAdded: {count}\nSkipped (already exists): {skipped}")
+
+@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "scan_channel"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
