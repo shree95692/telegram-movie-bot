@@ -5,6 +5,7 @@ from threading import Thread
 import re
 import json
 import os
+from difflib import SequenceMatcher
 
 app = Flask(__name__)
 
@@ -38,26 +39,24 @@ def extract_title(text):
     if not lines:
         return None
 
-    def clean_text(s):
-        return re.sub(r'[^\w\s\-:\'"]', '', s)
-
-    # Look for keyword-based titles
     for line in lines:
         lower_line = line.lower()
         if any(k in lower_line for k in ["title", "movie", "name", "film"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1:
-                title = clean_text(parts[1].strip())
-                if 2 <= len(title.split()) <= 12:
-                    return title.lower()
+            if len(parts) > 1 and len(parts[1].strip()) >= 2:
+                return parts[1].strip().lower()
 
-    # Fallback: first clean, valid line
+    if 1 <= len(lines[0].split()) <= 8:
+        return lines[0].lower()
+
     for line in lines:
-        clean_line = clean_text(line)
-        if 1 <= len(clean_line.split()) <= 8 and not clean_line.lower().startswith(("uploaded", "resolution", "language", "genre")):
-            return clean_line.lower()
+        if 1 <= len(line.split()) <= 6:
+            return line.lower()
 
     return None
+
+def is_similar(a, b, threshold=0.7):
+    return SequenceMatcher(None, a, b).ratio() >= threshold
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
@@ -92,7 +91,7 @@ async def init_channels(client, message: Message):
 
 @bot.on_message(filters.private & filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
 async def search_movie(client, message: Message):
-    query = message.text.lower()
+    query = message.text.lower().strip()
     valid_results = []
 
     for title, (channel, msg_id) in list(movie_db.items()):
@@ -100,7 +99,8 @@ async def search_movie(client, message: Message):
             msg = await client.get_messages(channel, msg_id)
             if not msg or (not msg.text and not msg.caption):
                 raise ValueError("Deleted or empty message")
-            if query in title:
+
+            if is_similar(query, title):
                 valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
         except:
             movie_db.pop(title, None)
@@ -143,15 +143,16 @@ async def new_post(client, message: Message):
         else:
             print("Title not found. Sending to alert.")
             try:
-                await client.send_message(
+                await client.forward_messages(
                     chat_id=ALERT_CHANNEL,
-                    text=f"⚠️ **Title extract nahi ho paya:**\nhttps://t.me/{message.chat.username}/{message.id}\n**Kripya title ko sahi karein!**"
+                    from_chat_id=message.chat.id,
+                    message_ids=[message.id]
                 )
             except Exception as e:
                 print("Alert forward failed:", e)
                 await client.send_message(
                     chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing & alert failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
+                    text=f"❗ Title missing & forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
     else:
         print("Post is from unknown channel.")
