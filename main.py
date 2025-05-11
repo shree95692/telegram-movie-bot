@@ -20,6 +20,7 @@ BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
+ALLOWED_USER_ID = 5163916480  # For /show_db
 
 DB_FILE = "movie_db.json"
 
@@ -40,24 +41,18 @@ def clean_text(text):
 
 def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    candidates = []
+    if not lines:
+        return None
 
     for line in lines:
-        # Skip known junk/quality/resolution lines
-        if any(q in line.lower() for q in ["480p", "720p", "1080p", "hdrip", "bluray", "web-dl", "hevc"]):
-            continue
-
-        # Prioritize lines with keywords
-        if any(k in line.lower() for k in ["title", "movie", "film", "name"]):
-            parts = re.split(r"[:\-–]", line, maxsplit=1)
+        if any(k in line.lower() for k in ["title", "movie", "name", "film"]):
+            parts = re.split(r"[:\-\u2013]", line, maxsplit=1)
             if len(parts) > 1 and len(parts[1].strip()) >= 2:
                 return clean_text(parts[1])
 
+    for line in lines:
         if 1 <= len(line.split()) <= 8:
-            candidates.append(line)
-
-    if candidates:
-        return clean_text(candidates[0])
+            return clean_text(line)
 
     return None
 
@@ -79,12 +74,10 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
-
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
         errors.append(f"❌ Forward channel error:\n{e}")
-
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
     except Exception as e:
@@ -95,7 +88,22 @@ async def init_channels(client, message: Message):
     else:
         await message.reply_text("✅ Both channels initialized successfully.")
 
-@bot.on_message(filters.text & ~filters.command(["start", "register_alert", "init_channels"]))
+@bot.on_message(filters.command("show_db"))
+async def show_db(client, message: Message):
+    if message.from_user.id != ALLOWED_USER_ID:
+        await message.reply_text("❌ Access denied.")
+        return
+
+    db_text = json.dumps(movie_db, indent=2)
+    if len(db_text) > 4000:
+        with open("movie_db_temp.json", "w") as f:
+            f.write(db_text)
+        await message.reply_document("movie_db_temp.json")
+        os.remove("movie_db_temp.json")
+    else:
+        await message.reply_text(f"`{db_text}`", parse_mode="markdown")
+
+@bot.on_message(filters.text & ~filters.command(["start", "register_alert", "init_channels", "show_db"]))
 async def search_movie(client, message: Message):
     if message.chat.type not in ["private", "group", "supergroup"]:
         return
@@ -126,9 +134,8 @@ async def new_post(client, message: Message):
     chat_username = f"@{message.chat.username}"
 
     if chat_username in CHANNELS:
-        print(f"[TEXT] {text}")
         title = extract_title(text)
-        print(f"[TITLE] {title}")
+        print(f"[DEBUG] Extracted title: {title}")
 
         if title and len(title) >= 2:
             movie_db[title] = (chat_username, message.id)
