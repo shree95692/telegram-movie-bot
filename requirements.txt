@@ -4,3 +4,4 @@ flask
 unidecode
 emoji
 fuzzywuzzy
+python-Levenshtein
