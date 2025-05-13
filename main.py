@@ -5,7 +5,9 @@ from threading import Thread
 import re
 import json
 import os
-import difflib  # <- Added for fuzzy matching
+import difflib
+import emoji
+from fuzzywuzzy import process
 
 app = Flask(__name__)
 
@@ -34,24 +36,30 @@ def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(movie_db, f)
 
+def clean_text(text):
+    # Remove emojis and special characters
+    text = emoji.replace_emoji(text, replace='')
+    text = re.sub(r"[^\w\s]", " ", text)
+    return text.strip().lower()
+
 def extract_title(text):
+    if not text:
+        return None
+
+    text = clean_text(text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
 
     for line in lines:
-        lower_line = line.lower()
-        if any(k in lower_line for k in ["title", "movie", "name", "film"]):
+        if any(k in line.lower() for k in ["title", "movie", "name", "film"]):
             parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1 and len(parts[1].strip()) >= 2:
-                return parts[1].strip().lower()
-
-    if 1 <= len(lines[0].split()) <= 8:
-        return lines[0].lower()
+            if len(parts) > 1:
+                return clean_text(parts[1])
 
     for line in lines:
-        if 1 <= len(line.split()) <= 6:
-            return line.lower()
+        if 1 <= len(line.split()) <= 8:
+            return clean_text(line)
 
     return None
 
@@ -62,10 +70,7 @@ async def start_cmd(client, message: Message):
 @bot.on_message(filters.command("register_alert"))
 async def register_alert(client, message: Message):
     try:
-        await client.send_message(
-            chat_id=ALERT_CHANNEL,
-            text="✅ Alert channel registered with bot successfully!"
-        )
+        await client.send_message(chat_id=ALERT_CHANNEL, text="✅ Alert channel registered successfully!")
         await message.reply_text("Alert channel registered. Forwarding should now work.")
     except Exception as e:
         await message.reply_text(f"❌ Failed to register alert channel:\n{e}")
@@ -73,7 +78,6 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
-
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
@@ -91,7 +95,7 @@ async def init_channels(client, message: Message):
 
 @bot.on_message(filters.command("scan_channel"))
 async def scan_channel(client, message: Message):
-    await message.reply_text("Scanning channels... This may take a while.")
+    await message.reply_text("Scanning channels... Please wait.")
     count = 0
     skipped = 0
 
@@ -100,7 +104,7 @@ async def scan_channel(client, message: Message):
             async for msg in client.get_chat_history(channel, limit=1000):
                 text = (msg.text or msg.caption) or ""
                 title = extract_title(text)
-                if title and len(title.strip()) >= 2:
+                if title and len(title) >= 2:
                     if title not in movie_db:
                         movie_db[title] = (channel, msg.id)
                         count += 1
@@ -110,36 +114,27 @@ async def scan_channel(client, message: Message):
             await message.reply_text(f"Error scanning {channel}:\n{e}")
 
     save_db()
-    await message.reply_text(f"Scan complete!\nAdded: {count}\nSkipped (already exists): {skipped}")
+    await message.reply_text(f"Scan complete!\nAdded: {count}\nSkipped: {skipped}")
 
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "scan_channel"]))
 async def search_movie(client, message: Message):
-    query = message.text.lower()
-    valid_results = []
-
-    def similarity(a, b):
-        return difflib.SequenceMatcher(None, a, b).ratio()
+    query = clean_text(message.text)
+    if not query:
+        await message.reply_text("Please send a valid movie name.")
+        return
 
     all_titles = list(movie_db.keys())
-    matches = sorted(
-        [title for title in all_titles if similarity(query, title) > 0.5],
-        key=lambda t: similarity(query, t),
-        reverse=True
-    )[:5]
+    match, score = process.extractOne(query, all_titles) if all_titles else (None, 0)
 
-    for title in matches:
-        channel, msg_id = movie_db[title]
+    if match and score > 65:
+        channel, msg_id = movie_db[match]
         try:
-            msg = await client.get_messages(channel, msg_id)
-            if not msg or (not msg.text and not msg.caption):
-                raise ValueError("Deleted or empty message")
-            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            link = f"https://t.me/{channel.strip('@')}/{msg_id}"
+            await message.reply_text(f"🎬 Movie mil gayi:\n{link}")
         except:
-            movie_db.pop(title, None)
+            movie_db.pop(match, None)
             save_db()
-
-    if valid_results:
-        await message.reply_text("Yeh rahe matching movies:\n" + "\n".join(valid_results))
+            await message.reply_text("Movie link delete ho gaya hai.")
     else:
         await message.reply_text("Sorry, koi movie nahi mili.")
         await client.send_message(
@@ -154,38 +149,21 @@ async def new_post(client, message: Message):
 
     if chat_username in CHANNELS:
         title = extract_title(text)
-        if title and len(title.strip()) >= 2:
+        if title and len(title) >= 2:
             movie_db[title] = (chat_username, message.id)
             save_db()
-            print(f"Saved title in DB: {title} -> {chat_username}/{message.id}")
+            print(f"Saved: {title} -> {chat_username}/{message.id}")
             try:
-                await client.forward_messages(
-                    chat_id=FORWARD_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
+                await client.forward_messages(FORWARD_CHANNEL, message.chat.id, [message.id])
             except Exception as e:
-                print("Forward failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Failed to forward post:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+                await client.send_message(ALERT_CHANNEL, f"❗ Forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}")
         else:
-            print("No title extracted from post. Not saved in DB.")
             try:
-                await client.forward_messages(
-                    chat_id=ALERT_CHANNEL,
-                    from_chat_id=message.chat.id,
-                    message_ids=[message.id]
-                )
+                await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
             except Exception as e:
-                print("Forward to alert failed:", e)
-                await client.send_message(
-                    chat_id=ALERT_CHANNEL,
-                    text=f"❗ Title missing and forward failed:\n\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+                await client.send_message(ALERT_CHANNEL, f"❗ Title missing and forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}")
     else:
-        print("Post is from unknown channel.")
+        print("Unknown channel.")
 
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
