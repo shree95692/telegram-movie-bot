@@ -24,7 +24,7 @@ FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
 
 # Backup Config (fill your token below)
-GITHUB_TOKEN = "your_github_personal_access_token_here"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = "shree95692/movie-db-backup"
 GITHUB_FILE_PATH = "movie_db.json"
 GITHUB_COMMITTER = {
