@@ -6,6 +6,9 @@ import re
 import json
 import os
 import difflib
+import requests
+import base64
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -20,6 +23,15 @@ CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
 
+# Backup Config (fill your token below)
+GITHUB_TOKEN = "your_github_personal_access_token_here"
+GITHUB_REPO = "shree95692/movie-db-backup"
+GITHUB_FILE_PATH = "movie_db.json"
+GITHUB_COMMITTER = {
+    "name": "MovieBot",
+    "email": "moviebot@example.com"
+}
+
 DB_FILE = "movie_db.json"
 
 if os.path.exists(DB_FILE):
@@ -30,9 +42,42 @@ else:
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+def upload_to_github():
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}"
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+
+        with open(DB_FILE, "rb") as f:
+            content = f.read()
+        b64_content = base64.b64encode(content).decode("utf-8")
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            sha = response.json()["sha"]
+        else:
+            sha = None
+
+        data = {
+            "message": f"Backup on {datetime.utcnow().isoformat()}",
+            "content": b64_content,
+            "committer": GITHUB_COMMITTER
+        }
+
+        if sha:
+            data["sha"] = sha
+
+        requests.put(url, headers=headers, json=data)
+        print("✅ Backup uploaded to GitHub.")
+    except Exception as e:
+        print("❌ GitHub backup failed:", e)
+
 def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(movie_db, f)
+    upload_to_github()
 
 def extract_title(text):
     lines = [re.sub(r"[^\w\s]", "", line.strip().lower()) for line in text.splitlines() if line.strip()]
