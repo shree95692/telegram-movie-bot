@@ -23,7 +23,7 @@ CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
 
-# Backup Config (fill your token below)
+# Backup Config
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = "shree95692/movie-db-backup"
 GITHUB_FILE_PATH = "movie_db.json"
@@ -55,10 +55,7 @@ def upload_to_github():
         b64_content = base64.b64encode(content).decode("utf-8")
 
         response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            sha = response.json()["sha"]
-        else:
-            sha = None
+        sha = response.json()["sha"] if response.status_code == 200 else None
 
         data = {
             "message": f"Backup on {datetime.utcnow().isoformat()}",
@@ -80,19 +77,15 @@ def save_db():
     upload_to_github()
 
 def extract_title(text):
+    match = re.search(r"(?i)title\s*[:\-–]?\s*\*{0,2}(.*?)\*{0,2}[\n]|^🎬\s*Title\s*[:\-–]?\s*\*{0,2}(.*?)\*{0,2}", text)
+    if match:
+        title = match.group(1) or match.group(2)
+        return re.sub(r"[^\w\s]", "", title.strip().lower())
+
     lines = [re.sub(r"[^\w\s]", "", line.strip().lower()) for line in text.splitlines() if line.strip()]
-    keywords = ["title", "movie", "name", "film"]
-
-    for line in lines:
-        if any(k in line for k in keywords):
-            parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1 and len(parts[1].strip()) >= 2:
-                return parts[1].strip().lower()
-
     for line in lines:
         if 1 <= len(line.split()) <= 6:
             return line.lower()
-
     return None
 
 @bot.on_message(filters.command("start"))
@@ -119,16 +112,12 @@ async def init_channels(client, message: Message):
     except Exception as e:
         errors.append(f"❌ Alert channel error:\n{e}")
 
-    if errors:
-        await message.reply_text("\n\n".join(errors))
-    else:
-        await message.reply_text("✅ Both channels initialized successfully.")
+    await message.reply_text("\n\n".join(errors) if errors else "✅ Both channels initialized successfully.")
 
 @bot.on_message(filters.command("scan_channel"))
 async def scan_channel(client, message: Message):
     await message.reply_text("Scanning channels... This may take a while.")
-    count = 0
-    skipped = 0
+    count, skipped = 0, 0
 
     for channel in CHANNELS:
         try:
