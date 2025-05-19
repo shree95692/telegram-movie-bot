@@ -160,17 +160,8 @@ async def process_new_post(client, message: Message):
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
-import asyncio
-from pyrogram import idle
-
 def run_bot():
-    async def start_bot():
-        await bot.start()
-        print("Bot started.")
-        await idle()
-        await bot.stop()
-
-    asyncio.run(start_bot())
+    bot.run()
 
 if __name__ == "__main__":
     Thread(target=run_flask).start()
