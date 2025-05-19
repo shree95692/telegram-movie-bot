@@ -18,10 +18,10 @@ def home():
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_NAME = "session"  # session.session file should be uploaded
+SESSION_NAME = "session"
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
-ALERT_CHANNEL = -1002661392627
+ALERT_CHANNEL = -1005163916480  # <-- Fixed here
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = "shree95692/movie-db-backup"
