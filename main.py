@@ -110,8 +110,7 @@ async def handle_new_message(client, message: Message):
 
         if title:
             if title in movie_db and movie_db[title] != link:
-                await bot.send_message(ALERT_CHANNEL_ID, f"⚠️ Duplicate title in new post: `{title}`
-{link}")
+                await bot.send_message(ALERT_CHANNEL_ID, f"⚠️ Duplicate title in new post: `{title}`\n{link}")
             movie_db[title] = link
             upload_to_github()
         else:
