@@ -17,7 +17,7 @@ SESSION_NAME = "movie_bot_session"
 CHANNELS = ["stree2chaava2", "chaava2025"]
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # replace with your GitHub token
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Set this in Koyeb secrets
 REPO_NAME = "shree95692/movie-db-backup"
 FILE_NAME = "movies.json"
 # =============================
@@ -74,7 +74,7 @@ async def scan_channels():
     print("Scanning channels...")
     for channel in CHANNELS:
         async for msg in bot.get_chat_history(channel, limit=300):
-            if msg.text:
+            if msg and msg.text and hasattr(msg, "message_id"):
                 title = extract_title(msg.text)
                 link = f"https://t.me/{channel}/{msg.message_id}"
                 if title:
@@ -90,7 +90,7 @@ async def scan_channels():
 # ====== New Message Listener ======
 @bot.on_message(filters.channel & filters.chat(CHANNELS))
 async def new_post_handler(client, message: Message):
-    if message.text:
+    if message and message.text and hasattr(message, "message_id"):
         title = extract_title(message.text)
         link = f"https://t.me/{message.chat.username}/{message.message_id}"
         if title:
@@ -119,7 +119,7 @@ def run_bot():
     async def main():
         async with bot:
             await scan_channels()
-            await asyncio.Event().wait()
+            await asyncio.Event().wait()  # Keep bot alive
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
