@@ -20,6 +20,7 @@ FORWARD_CHANNEL_ID = -1002512169097
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Set this in Koyeb secrets
 REPO_NAME = "shree95692/movie-db-backup"
 FILE_NAME = "movies.json"
+OWNER_ID = 5163916480
 # =============================
 
 app = Flask(__name__)
@@ -87,10 +88,10 @@ async def scan_channels():
                         pass
     upload_to_github()
 
-# ====== New Message Listener (Fixed) ======
-@bot.on_message(filters.channel)
+# ====== New Message Listener ======
+@bot.on_message(filters.channel & filters.chat(CHANNELS))
 async def new_post_handler(client, message: Message):
-    if message.chat.username in CHANNELS and message.text and hasattr(message, "message_id"):
+    if message and message.text and hasattr(message, "message_id"):
         title = extract_title(message.text)
         link = f"https://t.me/{message.chat.username}/{message.message_id}"
         if title:
@@ -104,7 +105,7 @@ async def new_post_handler(client, message: Message):
                 pass
 
 # ====== Manual Rescan Command ======
-@bot.on_message(filters.command("scan_channel") & filters.user([5163916480]))
+@bot.on_message(filters.command("scan_channel") & filters.user(OWNER_ID))
 async def manual_scan(client, message):
     await scan_channels()
     await message.reply_text("Rescan complete and backup updated.")
@@ -114,16 +115,10 @@ async def manual_scan(client, message):
 def home():
     return "Bot is running."
 
-# ====== Start Bot in Thread (Async Fix) ======
+# ====== Bot Starter ======
 def run_bot():
-    async def main():
-        async with bot:
-            await scan_channels()
-            await asyncio.Event().wait()
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    bot.run()
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
