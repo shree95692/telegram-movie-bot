@@ -87,10 +87,10 @@ async def scan_channels():
                         pass
     upload_to_github()
 
-# ====== New Message Listener ======
-@bot.on_message(filters.channel & filters.chat(CHANNELS))
+# ====== New Message Listener (Fixed) ======
+@bot.on_message(filters.channel)
 async def new_post_handler(client, message: Message):
-    if message and message.text and hasattr(message, "message_id"):
+    if message.chat.username in CHANNELS and message.text and hasattr(message, "message_id"):
         title = extract_title(message.text)
         link = f"https://t.me/{message.chat.username}/{message.message_id}"
         if title:
@@ -114,12 +114,12 @@ async def manual_scan(client, message):
 def home():
     return "Bot is running."
 
-# ====== Start Bot in Thread (Python 3.13 fix) ======
+# ====== Start Bot in Thread (Async Fix) ======
 def run_bot():
     async def main():
         async with bot:
             await scan_channels()
-            await asyncio.Event().wait()  # Keep bot alive
+            await asyncio.Event().wait()
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
