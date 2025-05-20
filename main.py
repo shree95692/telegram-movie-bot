@@ -89,7 +89,7 @@ async def scan_channels():
 
                 if title:
                     if title in movie_db and movie_db[title] != link:
-                        await bot.send_message(ALERT_CHANNEL_ID, f"⚠️ Duplicate title detected: `{title}`")
+                        await bot.send_message(ALERT_CHANNEL_ID, f"⚠️ Duplicate title detected: `{title}`\n{link}")
 {link}")
                     movie_db[title] = link
                     found_titles.add(title)
