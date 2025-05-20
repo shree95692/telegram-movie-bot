@@ -114,9 +114,16 @@ async def manual_scan(client, message):
 def home():
     return "Bot is running."
 
-# ====== Start Bot in Thread (Fixed run structure) ======
+# ====== Start Bot in Thread (Python 3.13 fix) ======
 def run_bot():
-    bot.run(scan_channels)  # FIXED: This keeps the bot running and activates all handlers
+    async def main():
+        async with bot:
+            await scan_channels()
+            await asyncio.Event().wait()  # Keep bot alive
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
