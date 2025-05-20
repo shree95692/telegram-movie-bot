@@ -2,13 +2,13 @@ import asyncio
 import json
 import os
 import re
-import threading
 from datetime import datetime
 
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from github import Github
+from threading import Thread
 
 # ======= CONFIGURATION =======
 API_ID = 25424751
@@ -115,11 +115,18 @@ async def manual_scan(client, message):
 def home():
     return "Bot is running."
 
-# ====== Bot Starter ======
-def run_bot():
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    bot.run()
+# ====== Async Starter ======
+def run_flask():
+    app.run(host="0.0.0.0", port=8000)
+
+async def main():
+    # Start Flask in a separate thread
+    Thread(target=run_flask).start()
+
+    await bot.start()
+    await scan_channels()
+    print("Bot is running...")
+    await asyncio.Event().wait()  # Keeps the bot alive
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=8000)
+    asyncio.run(main())
