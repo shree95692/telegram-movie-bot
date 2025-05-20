@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
@@ -9,16 +9,19 @@ import difflib
 import requests
 import base64
 from datetime import datetime
+import asyncio
 
+# Flask setup
 app = Flask(__name__)
 
 @app.route('/')
 def home():
     return "Bot is running with session login!"
 
+# Config
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_NAME = "session"  # session.session file should be uploaded
+SESSION_NAME = "session"  # session.session file must be present
 CHANNELS = ["@stree2chaava2", "@chaava2025"]
 FORWARD_CHANNEL = -1002512169097
 ALERT_CHANNEL = -1002661392627
@@ -33,6 +36,7 @@ GITHUB_COMMITTER = {
 
 DB_FILE = "movie_db.json"
 
+# Load or create movie database
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
         movie_db = json.load(f)
@@ -41,6 +45,7 @@ else:
 
 bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 
+# GitHub backup
 def upload_to_github():
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}"
@@ -70,6 +75,7 @@ def save_db():
         json.dump(movie_db, f)
     upload_to_github()
 
+# Extract title from post
 def extract_title(text):
     patterns = [
         r"(?i)title\s*[:\-–]?\s*\*{0,2}(.*?)\*{0,2}\n",
@@ -86,10 +92,12 @@ def extract_title(text):
             return line
     return None
 
+# Start command
 @bot.on_message(filters.command("start"))
 async def start(client, message: Message):
     await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
 
+# Manual scan command
 @bot.on_message(filters.command("scan_channel"))
 async def scan_channels(client, message: Message):
     await message.reply_text("Scanning channels... please wait.")
@@ -109,6 +117,7 @@ async def scan_channels(client, message: Message):
     save_db()
     await message.reply_text(f"✅ Scan complete!\nAdded: {added}\nSkipped: {skipped}")
 
+# Movie search
 @bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "scan_channel"]))
 async def search_movie(client, message: Message):
     query = re.sub(r"[^\w\s]", "", message.text.lower())
@@ -138,6 +147,7 @@ async def search_movie(client, message: Message):
         )
         await client.send_message(ALERT_CHANNEL, f"❌ Not found: **{query}** by [{message.from_user.first_name}](tg://user?id={message.from_user.id})")
 
+# New channel posts
 @bot.on_message(filters.channel)
 async def process_new_post(client, message: Message):
     text = (message.text or message.caption) or ""
@@ -157,11 +167,11 @@ async def process_new_post(client, message: Message):
     else:
         print("Post is from unknown source.")
 
+# Threaded Flask
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
-import asyncio
-
+# Threaded bot
 def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
