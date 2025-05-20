@@ -73,6 +73,7 @@ async def search_movie(client, message: Message):
 # ====== Channel Scanner ======
 async def scan_channels():
     print("Scanning channels...")
+    count = 0
     for channel in CHANNELS:
         async for msg in bot.get_chat_history(channel, limit=300):
             if msg and msg.text and hasattr(msg, "message_id"):
@@ -80,6 +81,7 @@ async def scan_channels():
                 link = f"https://t.me/{channel}/{msg.message_id}"
                 if title:
                     movie_db[title] = link
+                    count += 1
                 else:
                     await bot.send_message(ALERT_CHANNEL_ID, f"Unrecognized post:\n{link}")
                     try:
@@ -87,6 +89,7 @@ async def scan_channels():
                     except:
                         pass
     upload_to_github()
+    print(f"Scan complete. {count} movies added to database.")
 
 # ====== New Message Listener ======
 @bot.on_message(filters.channel & filters.chat(CHANNELS))
@@ -125,6 +128,7 @@ async def main():
 
     await bot.start()
     await scan_channels()
+    await bot.send_message(OWNER_ID, f"Bot started. Loaded {len(movie_db)} movies.")
     print("Bot is running...")
     await asyncio.Event().wait()  # Keeps the bot alive
 
