@@ -1,185 +1,127 @@
-from pyrogram import Client, filters, idle
-from pyrogram.types import Message
-from flask import Flask
-from threading import Thread
+import asyncio
 import json
 import os
 import re
-import difflib
-import requests
-import base64
+import threading
 from datetime import datetime
-import asyncio
 
-# Flask setup
-app = Flask(__name__)
+from flask import Flask
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from github import Github
 
-@app.route('/')
-def home():
-    return "Bot is running with session login!"
-
-# Config
+# ======= CONFIGURATION =======
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_NAME = "session"  # session.session file must be present
-CHANNELS = ["@stree2chaava2", "@chaava2025"]
-FORWARD_CHANNEL = -1002512169097
-ALERT_CHANNEL = -1002661392627
+SESSION_NAME = "movie_bot_session"
+CHANNELS = ["stree2chaava2", "chaava2025"]
+ALERT_CHANNEL_ID = -1002661392627
+FORWARD_CHANNEL_ID = -1002512169097
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # replace with your GitHub token
+REPO_NAME = "shree95692/movie-db-backup"
+FILE_NAME = "movies.json"
+# =============================
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GITHUB_REPO = "shree95692/movie-db-backup"
-GITHUB_FILE_PATH = "movie_db.json"
-GITHUB_COMMITTER = {
-    "name": "MovieBot",
-    "email": "moviebot@example.com"
-}
-
-DB_FILE = "movie_db.json"
-
-# Load or create movie database
-if os.path.exists(DB_FILE):
-    with open(DB_FILE, "r") as f:
-        movie_db = json.load(f)
-else:
-    movie_db = {}
-
+app = Flask(__name__)
 bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
+movie_db = {}
 
-# GitHub backup
-def upload_to_github():
-    try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}"
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json"
-        }
-        with open(DB_FILE, "rb") as f:
-            content = f.read()
-        b64_content = base64.b64encode(content).decode("utf-8")
-        response = requests.get(url, headers=headers)
-        sha = response.json()["sha"] if response.status_code == 200 else None
-        data = {
-            "message": f"Backup on {datetime.utcnow().isoformat()}",
-            "content": b64_content,
-            "committer": GITHUB_COMMITTER
-        }
-        if sha:
-            data["sha"] = sha
-        requests.put(url, headers=headers, json=data)
-        print("✅ Backup uploaded to GitHub.")
-    except Exception as e:
-        print("❌ GitHub backup failed:", e)
-
-def save_db():
-    with open(DB_FILE, "w") as f:
-        json.dump(movie_db, f)
-    upload_to_github()
-
-# Extract title from post
+# ====== Title Extractor ======
 def extract_title(text):
     patterns = [
-        r"(?i)title\s*[:\-–]?\s*\*{0,2}(.*?)\*{0,2}\n",
-        r"^🎬\s*Title\s*[:\-–]?\s*\*{0,2}(.*?)\*{0,2}",
-        r"(?i)^Title\s*[:\-–]?\s*(.*?)$",
+        r"🎬 *Title *: *(.+)",
+        r"Title *: *(.+)",
+        r"(.+)"
     ]
     for pattern in patterns:
-        match = re.search(pattern, text, re.MULTILINE)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            return re.sub(r"[^\w\s]", "", match.group(1).strip().lower())
-    lines = [re.sub(r"[^\w\s]", "", line.strip().lower()) for line in text.splitlines() if line.strip()]
-    for line in lines:
-        if 1 <= len(line.split()) <= 6:
-            return line
+            title = match.group(1).strip()
+            return re.sub(r"[^A-Za-z0-9\s]", "", title).lower()
     return None
 
-# Start command
-@bot.on_message(filters.command("start"))
-async def start(client, message: Message):
-    await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
-
-# Manual scan command
-@bot.on_message(filters.command("scan_channel"))
-async def scan_channels(client, message: Message):
-    await message.reply_text("Scanning channels... please wait.")
-    added, skipped = 0, 0
-    for channel in CHANNELS:
+# ====== GitHub Backup ======
+def upload_to_github():
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(REPO_NAME)
+        content = json.dumps(movie_db, indent=2)
         try:
-            async for msg in client.get_chat_history(channel, limit=1000):
-                text = (msg.text or msg.caption) or ""
-                title = extract_title(text)
-                if title and title not in movie_db:
-                    movie_db[title] = (channel, msg.id)
-                    added += 1
-                else:
-                    skipped += 1
-        except Exception as e:
-            await message.reply_text(f"❌ Error in {channel}:\n{e}")
-    save_db()
-    await message.reply_text(f"✅ Scan complete!\nAdded: {added}\nSkipped: {skipped}")
-
-# Movie search
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "scan_channel"]))
-async def search_movie(client, message: Message):
-    query = re.sub(r"[^\w\s]", "", message.text.lower())
-    all_titles = list(movie_db.keys())
-    matches = difflib.get_close_matches(query, all_titles, n=5, cutoff=0.5)
-    valid_results = []
-
-    for title in matches:
-        channel, msg_id = movie_db[title]
-        try:
-            msg = await client.get_messages(channel, msg_id)
-            if not msg or (not msg.text and not msg.caption):
-                raise ValueError("Deleted")
-            valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            file = repo.get_contents(FILE_NAME)
+            repo.update_file(FILE_NAME, f"update {datetime.now()}", content, file.sha)
         except:
-            movie_db.pop(title, None)
-            save_db()
+            repo.create_file(FILE_NAME, f"create {datetime.now()}", content)
+    except Exception as e:
+        print("GitHub upload error:", e)
 
-    if valid_results:
-        await message.reply_text("Yeh rahe matching results:\n" + "\n".join(valid_results))
+# ====== Movie Search ======
+@bot.on_message(filters.private & filters.text)
+async def search_movie(client, message: Message):
+    query = message.text.lower()
+    results = [link for title, link in movie_db.items() if query in title]
+
+    if results:
+        for link in results:
+            await message.reply_text(f"**Movie Found:** [Watch Now]({link})", disable_web_page_preview=True)
     else:
         await message.reply_text(
-            "Sorry, movie nahi mili.\n\n"
-            "Aapka request record ho gaya hai.\n"
-            "**5–6 ghante me upload ho jaayega.**\n"
-            "_Tab tak dubara visit kare!_"
+            "**Movie not found.**\n\nYour request has been received and will be uploaded within 5–6 hours."
         )
-        await client.send_message(ALERT_CHANNEL, f"❌ Not found: **{query}** by [{message.from_user.first_name}](tg://user?id={message.from_user.id})")
+        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie not found for search: `{query}` by {message.from_user.mention}")
 
-# New channel posts
-@bot.on_message(filters.channel)
-async def process_new_post(client, message: Message):
-    text = (message.text or message.caption) or ""
-    chat_username = f"@{message.chat.username}"
+# ====== Channel Scanner ======
+async def scan_channels():
+    print("Scanning channels...")
+    for channel in CHANNELS:
+        async for msg in bot.get_chat_history(channel, limit=300):
+            if msg.text:
+                title = extract_title(msg.text)
+                link = f"https://t.me/{channel}/{msg.message_id}"
+                if title:
+                    movie_db[title] = link
+                else:
+                    await bot.send_message(ALERT_CHANNEL_ID, f"Unrecognized post:\n{link}")
+                    try:
+                        await bot.forward_messages(ALERT_CHANNEL_ID, channel, msg.message_id)
+                    except:
+                        pass
+    upload_to_github()
 
-    if chat_username in CHANNELS:
-        title = extract_title(text)
+# ====== New Message Listener ======
+@bot.on_message(filters.channel & filters.chat(CHANNELS))
+async def new_post_handler(client, message: Message):
+    if message.text:
+        title = extract_title(message.text)
+        link = f"https://t.me/{message.chat.username}/{message.message_id}"
         if title:
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            try:
-                await client.forward_messages(FORWARD_CHANNEL, message.chat.id, [message.id])
-            except Exception as e:
-                await client.send_message(ALERT_CHANNEL, f"❗ Forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}")
+            movie_db[title] = link
+            upload_to_github()
         else:
-            await client.send_message(ALERT_CHANNEL, f"❗ Title not found in:\nhttps://t.me/{message.chat.username}/{message.id}")
-    else:
-        print("Post is from unknown source.")
+            await bot.send_message(ALERT_CHANNEL_ID, f"Unrecognized new post:\n{link}")
+            try:
+                await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
+            except:
+                pass
 
-# Threaded Flask
-def run_flask():
-    app.run(host="0.0.0.0", port=8000)
+# ====== Manual Rescan Command ======
+@bot.on_message(filters.command("scan_channel") & filters.user([5163916480]))
+async def manual_scan(client, message):
+    await scan_channels()
+    await message.reply_text("Rescan complete and backup updated.")
 
-# Threaded bot
+# ====== Flask Healthcheck ======
+@app.route('/')
+def home():
+    return "Bot is running."
+
+# ====== Start Bot in Thread ======
 def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(bot.start())
-    print("Bot started.")
-    loop.run_until_complete(idle())
-    loop.run_until_complete(bot.stop())
+    loop.run_until_complete(scan_channels())
+    loop.run_forever()
 
 if __name__ == "__main__":
-    Thread(target=run_flask).start()
-    Thread(target=run_bot).start()
+    threading.Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=8000)
