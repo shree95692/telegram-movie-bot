@@ -114,8 +114,7 @@ async def handle_new_message(client, message: Message):
             movie_db[title] = link
             upload_to_github()
         else:
-            await bot.send_message(ALERT_CHANNEL_ID, f"❌ New post unrecognized:
-{link}")
+            await bot.send_message(ALERT_CHANNEL_ID, f"❌ New post unrecognized:\n{text}")
             await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
 
 # ===== Manual Scan Command =====
