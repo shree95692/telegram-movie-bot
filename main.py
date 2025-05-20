@@ -93,8 +93,7 @@ async def scan_channels():
                     movie_db[title] = link
                     found_titles.add(title)
                 else:
-                    await bot.send_message(ALERT_CHANNEL_ID, f"❌ Unrecognized post:
-{link}")
+                    await bot.send_message(ALERT_CHANNEL_ID, f"❌ Unrecognized post:\n{message.text}\n{link}")
                     await bot.forward_messages(ALERT_CHANNEL_ID, channel, msg.message_id)
     # Delete entries if message was deleted from Telegram
     to_delete = [t for t in movie_db if t not in found_titles]
