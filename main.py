@@ -1,125 +1,128 @@
 import os
 import json
-import re
-import logging
-import asyncio
+import time
+import requests
 from flask import Flask
-from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
+from pyrogram import Client, filters, idle
+from pyrogram.types import Message
+from datetime import datetime
 
-# Flask for Koyeb health check
-app = Flask(__name__)
-@app.route('/')
-def home():
-    return "Bot is running!"
-
-# Config
+# ==== Session Config ====
+SESSION_NAME = "movie_bot_session"
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_FILE = "movie_bot_session"
-CHANNELS = ["stree2chaava2", "chaava2025"]
-ALERT_CHANNEL_ID = -1002661392627
+
+# ==== Channels ====
+SOURCE_CHANNELS = ["stree2chaava2", "chaava2025"]
 FORWARD_CHANNEL_ID = -1002512169097
-BACKUP_REPO = "shree95692/movie-db-backup"
-BACKUP_FILE = "movies.json"
-MOVIE_DB_FILE = "movies.json"
+ALERT_CHANNEL_ID = -1002661392627
 
-movie_db = {}
+# ==== GitHub Config ====
+GITHUB_REPO = "shree95692/movie-db-backup"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Add token in koyeb secret
 
-# Load & Save DB
-def load_movie_db():
-    global movie_db
-    if os.path.exists(MOVIE_DB_FILE):
-        with open(MOVIE_DB_FILE, "r") as f:
-            movie_db = json.load(f)
-    else:
-        movie_db = {}
+# ==== Files ====
+DB_FILE = "movies.json"
+LOG_FILE = "movie_db.json"
 
-def save_movie_db():
-    with open(MOVIE_DB_FILE, "w") as f:
-        json.dump(movie_db, f, indent=2)
+# ==== Start Flask App for Koyeb ====
+web = Flask(__name__)
 
-# Title extractor
+@web.route("/")
+def home():
+    return "Movie Bot Running"
+
+# ==== Create Pyrogram App ====
+app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
+
+# ==== Utility Functions ====
+
+def save_json(data, filename):
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=2)
+
+def load_json(filename):
+    if os.path.exists(filename):
+        with open(filename, "r") as f:
+            return json.load(f)
+    return {}
+
 def extract_title(text):
-    match = re.search(r"(?i)title\s*[:\-–]\s*(.+)", text)
-    if match:
-        return match.group(1).split("\n")[0].strip()
-    for line in text.split("\n"):
-        line = line.strip()
-        if line and len(line) > 2:
-            return line
+    lines = text.splitlines()
+    for line in lines:
+        if "title" in line.lower():
+            clean = line.split(":", 1)[-1].strip(" 🎬:-").strip()
+            if clean:
+                return clean.lower()
     return None
 
-# GitHub backup
-def backup_to_github():
+def upload_to_github():
     try:
-        from github import Github
-        token = os.environ.get("GITHUB_TOKEN")
-        if not token:
-            return
-        g = Github(token)
-        repo = g.get_repo(BACKUP_REPO)
-        contents = repo.get_contents(BACKUP_FILE)
-        with open(MOVIE_DB_FILE, "r") as f:
-            data = f.read()
-        repo.update_file(contents.path, "Update movie DB", data, contents.sha)
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+        with open(DB_FILE, "r") as f:
+            content = f.read()
+        b64_data = content.encode("utf-8").decode("utf-8")
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}"
+        sha = requests.get(url, headers=headers).json().get("sha", "")
+        data = {
+            "message": f"Backup: {datetime.utcnow()}",
+            "content": b64_data.encode("utf-8").decode("utf-8"),
+            "sha": sha
+        }
+        requests.put(url, headers=headers, json=data)
     except Exception as e:
-        print(f"GitHub backup failed: {e}")
+        print("GitHub backup error:", e)
 
-# Alert
-async def alert(client, message):
+def alert(msg):
     try:
-        await client.send_message(ALERT_CHANNEL_ID, f"⚠️ {message}")
+        app.send_message(ALERT_CHANNEL_ID, f"**Alert:** {msg}")
     except Exception as e:
-        print(f"Alert send failed: {e}")
+        print("Failed to send alert:", e)
 
-# Process post
-async def process_post(client, message):
+# ==== Main Movie DB ====
+movie_db = load_json(DB_FILE)
+
+# ==== On New Messages in Channel ====
+@app.on_message(filters.channel & filters.chat(SOURCE_CHANNELS))
+def update_db(client, message: Message):
     try:
-        if not message.text:
-            return
-        title = extract_title(message.text)
+        text = message.text or message.caption or ""
+        title = extract_title(text)
         if not title:
-            await alert(client, f"Failed to extract title from message ID {message.id}")
-            await client.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.id)
+            alert(f"Title not found in post {message.link}")
             return
-        movie_db[title.lower()] = f"https://t.me/{message.chat.username}/{message.id}"
-        save_movie_db()
-        backup_to_github()
+
+        link = f"https://t.me/{message.chat.username}/{message.id}"
+        movie_db[title.lower()] = link
+        save_json(movie_db, DB_FILE)
+        save_json(movie_db, LOG_FILE)
+        upload_to_github()
+
     except Exception as e:
-        await alert(client, f"Processing error: {e}")
+        alert(f"Failed to add post {message.link if message else 'unknown'}\n{str(e)}")
 
-# Main bot logic
-async def main():
-    load_movie_db()
-    app_client = Client(SESSION_FILE, api_id=API_ID, api_hash=API_HASH)
+# ==== On Private Message (Search) ====
+@app.on_message(filters.private & filters.text)
+def search_movie(client, message: Message):
+    query = message.text.lower().strip()
+    if not query:
+        return
 
-    @app_client.on_message(filters.text & filters.private)
-    async def search_movie(client, message):
-        query = message.text.strip().lower()
-        result = None
-        for title, link in movie_db.items():
-            if query in title:
-                result = f"🎬 **{title.title()}**\n🔗 {link}"
-                break
-        if result:
-            await message.reply(result)
-        else:
-            await message.reply(
-                "**Movie not found!**\n\nYour request has been received and will be uploaded in 5–6 hours."
-            )
-            await alert(client, f"❌ Movie not found: {message.text}")
+    for title, link in movie_db.items():
+        if query in title:
+            message.reply_text(f"**Found:** [{title.title()}]({link})", disable_web_page_preview=True)
+            return
 
-    @app_client.on_message(filters.channel)
-    async def channel_msg(client, message):
-        if message.chat.username in CHANNELS:
-            await process_post(client, message)
+    alert(f"Movie not found: {query}")
+    message.reply_text(f"**Movie not found!**\n\nDon't worry, your request has been received and the movie will be uploaded within 5–6 hours.")
 
-    await app_client.start()
-    print("Bot is running...")
-    await asyncio.Event().wait()  # replaces idle()
-
+# ==== Start Bot ====
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8000)).start()
-    asyncio.run(main())
+    app.start()
+    print("Bot Started")
+    web.run(host="0.0.0.0", port=8000)
+    idle()
+    app.stop()
