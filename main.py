@@ -1,4 +1,3 @@
-
 import asyncio
 import json
 import os
@@ -93,7 +92,7 @@ async def scan_channels():
                     movie_db[title] = link
                     found_titles.add(title)
                 else:
-                    await bot.send_message(ALERT_CHANNEL_ID, f"❌ Unrecognized post:\n{message.text}\n{link}")
+                    await bot.send_message(ALERT_CHANNEL_ID, f"❌ Unrecognized post:\n{msg.text}\n{link}")
                     await bot.forward_messages(ALERT_CHANNEL_ID, channel, msg.message_id)
     # Delete entries if message was deleted from Telegram
     to_delete = [t for t in movie_db if t not in found_titles]
@@ -114,7 +113,7 @@ async def handle_new_message(client, message: Message):
             movie_db[title] = link
             upload_to_github()
         else:
-            await bot.send_message(ALERT_CHANNEL_ID, f"❌ New post unrecognized:\n{text}")
+            await bot.send_message(ALERT_CHANNEL_ID, f"❌ New post unrecognized:\n{message.text}")
             await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
 
 # ===== Manual Scan Command =====
