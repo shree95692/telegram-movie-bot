@@ -1,118 +1,84 @@
-import os
-import re
-import json
-import asyncio
-import logging
-import requests
-from pyrogram import Client, filters
-from pyrogram.types import Message
-from pyrogram.errors import MessageIdInvalid
+# main.py
 from flask import Flask
+from pyrogram import Client, filters
+import json, os
+import asyncio
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_FILE = "movie_bot.session"
-
+SESSION_FILE = "moviebot_session.session"
+ALERT_CHANNEL_ID = -1002661392627
+FORWARD_CHANNEL_ID = -1002512169097
 CHANNELS = ["stree2chaava2", "chaava2025"]
-ALERT_CHANNEL = -1002661392627
-FORWARD_CHANNEL = -1002512169097
-DB_FILE = "movie_db.json"
-GITHUB_REPO = "shree95692/movie-db-backup"
+MOVIE_DB = "movies.json"
+BOT_USERNAME = "Movie_request_4k_group_bot"
 
 app = Flask(__name__)
-bot = Client(SESSION_FILE, api_id=API_ID, api_hash=API_HASH)
+bot = Client("moviebot", api_id=API_ID, api_hash=API_HASH, session_string=open(SESSION_FILE).read())
 
-db = {}
-
-def save_db():
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
-    try:
-        requests.put(
-            f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}",
-            headers={
-                "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
-                "Accept": "application/vnd.github.v3+json"
-            },
-            json={
-                "message": "Backup movie DB",
-                "content": requests.utils.quote(open(DB_FILE, "rb").read().decode("utf-8").encode("base64")),
-                "sha": get_github_file_sha()
-            }
-        )
-    except Exception as e:
-        print("GitHub backup failed:", e)
-
-def load_db():
-    global db
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            db = json.load(f)
+movie_data = {}
 
 def extract_title(text):
-    lines = text.splitlines()
-    for line in lines:
+    for line in text.splitlines():
+        line = line.strip()
         if "title" in line.lower():
-            cleaned = re.sub(r"[^a-zA-Z0-9\s]", "", line.split(":")[-1]).strip().lower()
-            if cleaned:
-                return cleaned
+            return line.split(":")[-1].strip(" :–👉|")
     return None
 
-async def process_post(channel, message):
-    try:
-        title = extract_title(message.text or "")
-        if not title:
-            await bot.send_message(ALERT_CHANNEL, f"❗ Unrecognized format:\nhttps://t.me/{channel}/{message.id}")
-            return
-        db[title] = f"https://t.me/{channel}/{message.id}"
-        save_db()
-    except Exception as e:
-        await bot.send_message(ALERT_CHANNEL, f"❌ Error processing post {message.id}: {e}")
-
-@bot.on_message(filters.command("start") & filters.private)
-async def start_cmd(_, msg: Message):
-    await msg.reply("Welcome to Movie Bot! Send a movie name to search.")
-
-@bot.on_message(filters.private & ~filters.command("start"))
-async def search_movie(_, msg: Message):
-    text = msg.text.strip().lower()
-    if text == "uploaded":
-        if db:
-            uploaded = "\n".join([f"• {k.title()}" for k in list(db.keys())[:50]])
-            await msg.reply(f"✅ Uploaded Movies:\n\n{uploaded}")
-        else:
-            await msg.reply("No movies uploaded yet.")
-        return
-
-    link = db.get(text)
-    if link:
-        await msg.reply(f"🎬 Movie Found:\n{link}")
+def load_db():
+    global movie_data
+    if os.path.exists(MOVIE_DB):
+        with open(MOVIE_DB, "r") as f:
+            movie_data = json.load(f)
     else:
-        await msg.reply("Movie not found. Upload in 5–6 hrs.")
-        await bot.send_message(ALERT_CHANNEL, f"❓ Not found: `{text}`")
+        movie_data = {}
 
-@bot.on_message(filters.channel)
-async def auto_update(client, message: Message):
-    if message.chat.username in CHANNELS:
-        await process_post(message.chat.username, message)
+def save_db():
+    with open(MOVIE_DB, "w") as f:
+        json.dump(movie_data, f, indent=2)
+
+async def scan_all_posts():
+    for channel in CHANNELS:
+        try:
+            async for msg in bot.get_chat_history(channel):
+                if msg.text:
+                    title = extract_title(msg.text)
+                    if title:
+                        movie_data[title.lower()] = f"https://t.me/{channel}/{msg.message_id}"
+                        await bot.forward_messages(FORWARD_CHANNEL_ID, channel, msg.message_id)
+                    else:
+                        await bot.forward_messages(ALERT_CHANNEL_ID, channel, msg.message_id)
+        except Exception as e:
+            print(f"Error reading {channel}: {e}")
+    save_db()
+
+@bot.on_message(filters.private & filters.text)
+async def movie_search(client, message):
+    query = message.text.strip().lower()
+    link = movie_data.get(query)
+    if link:
+        await message.reply(f"**🎬 Movie Found:**\n{link}")
+    else:
+        await message.reply(
+            "**❌ Movie Not Found**\nYour request has been received.\nMovie will be uploaded in 5–6 hours.\nStay tuned!"
+        )
+        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{message.text}` by [{message.from_user.first_name}](tg://user?id={message.from_user.id})")
 
 @app.route("/")
-def home():
-    return "Bot Running"
-
-async def update_all_old_posts():
-    for channel in CHANNELS:
-        async for msg in bot.get_chat_history(channel, limit=1000):
-            await process_post(channel, msg)
+def index():
+    return "Bot is running!"
 
 async def main():
     load_db()
     await bot.start()
-    await update_all_old_posts()
-    print("Bot Started.")
-    await asyncio.get_event_loop().run_forever()
+    await scan_all_posts()
+    print("Bot is ready")
+    await idle()
 
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8000)).start()
-    asyncio.run(main())
+    import nest_asyncio
+    from pyrogram import idle
+    nest_asyncio.apply()
+    loop = asyncio.get_event_loop()
+    loop.create_task(main())
+    app.run(host="0.0.0.0", port=8000)
