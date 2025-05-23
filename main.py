@@ -1,8 +1,6 @@
-# main.py
 from flask import Flask
-from pyrogram import Client, filters
-import json, os
-import asyncio
+from pyrogram import Client, filters, idle
+import json, os, asyncio, nest_asyncio
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
@@ -76,8 +74,6 @@ async def main():
     await idle()
 
 if __name__ == "__main__":
-    import nest_asyncio
-    from pyrogram import idle
     nest_asyncio.apply()
     loop = asyncio.get_event_loop()
     loop.create_task(main())
