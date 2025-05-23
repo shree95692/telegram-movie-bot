@@ -1,0 +1,3 @@
+pyrogram
+flask
+nest_asyncio
