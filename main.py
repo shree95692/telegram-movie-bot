@@ -1,4 +1,3 @@
-
 import os
 import json
 import asyncio
@@ -102,13 +101,13 @@ async def scan_all_posts():
     save_db()
 
 # Handle deleted posts
-def clean_deleted_links():
+async def clean_deleted_links():
     to_delete = []
     for title, link in movie_data.items():
         msg_id = int(link.split("/")[-1])
         chat = link.split("/")[-2]
         try:
-            bot.get_messages(chat, msg_id)
+            await bot.get_messages(chat, msg_id)
         except:
             to_delete.append(title)
     for title in to_delete:
@@ -119,10 +118,10 @@ def clean_deleted_links():
 # Command to check uploaded movies
 @bot.on_message(filters.command("uploaded"))
 async def uploaded_movies(message):
-    movie_data = load_movie_data()
     msg = "**Uploaded Movies:**\n"
     msg += "\n" + "\n".join(f"- {title}" for title in list(movie_data.keys())[:30])
-    await message.reply(msg)
+    if movie_data:
+        await message.reply(msg)
     else:
         await message.reply("No movies in database.")
 
@@ -132,14 +131,10 @@ async def movie_search(client, message):
     query = message.text.strip().lower()
     link = movie_data.get(query)
     if link:
-        await message.reply(f"**🎬 Movie Found:**
-{link}")
+        await message.reply(f"**🎬 Movie Found:**\n{link}")
     else:
         await message.reply(
-            "**❌ Movie Not Found**
-Your request has been received.
-Movie will be uploaded in 5–6 hours.
-Stay tuned!"
+            "**❌ Movie Not Found**\nYour request has been received.\nMovie will be uploaded in 5–6 hours.\nStay tuned!"
         )
         await bot.send_message(
             ALERT_CHANNEL_ID,
