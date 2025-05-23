@@ -120,7 +120,7 @@ def clean_deleted_links():
 @bot.on_message(filters.private & filters.command("list"))
 async def list_movies(client, message):
     if movie_data:
-        msg = "**Uploaded Movies:**
+        msg = """**Uploaded Movies:**\n"""
 
 " + "
 ".join(f"- {title}" for title in list(movie_data.keys())[:30])
