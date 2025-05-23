@@ -123,7 +123,7 @@ async def list_movies(client, message):
         msg = """**Uploaded Movies:**\n"""
 
 " + "
-".join(f"- {title}" for title in list(movie_data.keys())[:30])
+msg += "\n" + "\n".join(f"- {title}" for title in list(movie_data.keys())[:30])
         await message.reply(msg)
     else:
         await message.reply("No movies in database.")
