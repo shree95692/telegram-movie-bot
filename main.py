@@ -14,7 +14,7 @@ MOVIE_DB = "movies.json"
 BOT_USERNAME = "Movie_request_4k_group_bot"
 
 app = Flask(__name__)
-bot = Client("moviebot", api_id=API_ID, api_hash=API_HASH, session_string=open(SESSION_FILE, "rb").read()
+bot = Client("moviebot", api_id=API_ID, api_hash=API_HASH, session_string=open(SESSION_FILE, "rb").read())
 
 movie_data = {}
 
