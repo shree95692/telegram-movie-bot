@@ -54,17 +54,19 @@ async def scan_all_posts():
 async def movie_search(client, message):
     query = message.text.strip().lower()
     link = movie_data.get(query)
-    link = movie_data.get(query)
-if link:
-    await message.reply(f"**🎬 Movie Found:**\n{link}")
-else:
+    if link:
+        await message.reply(f"**🎬 Movie Found:**\n{link}")
+    else:
         await message.reply(
-            "**❌ Movie Not Found**
-Your request has been received.
-Movie will be uploaded in 5–6 hours.
-Stay tuned!"
+            "**❌ Movie Not Found**\n"
+            "Your request has been received.\n"
+            "Movie will be uploaded in 5–6 hours.\n"
+            "Stay tuned!"
         )
-        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{message.text}` by [{message.from_user.first_name}](tg://user?id={message.from_user.id})")
+        await bot.send_message(
+            ALERT_CHANNEL_ID,
+            f"❌ Not Found: `{message.text}` by [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+        )
 
 @app.route("/")
 def index():
