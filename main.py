@@ -54,10 +54,10 @@ async def scan_all_posts():
 async def movie_search(client, message):
     query = message.text.strip().lower()
     link = movie_data.get(query)
-    if link:
-        await message.reply(f"**🎬 Movie Found:**
-{link}")
-    else:
+    link = movie_data.get(query)
+if link:
+    await message.reply(f"**🎬 Movie Found:**\n{link}")
+else:
         await message.reply(
             "**❌ Movie Not Found**
 Your request has been received.
