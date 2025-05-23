@@ -117,14 +117,12 @@ def clean_deleted_links():
         save_db()
 
 # Command to check uploaded movies
-@bot.on_message(filters.private & filters.command("list"))
-async def list_movies(client, message):
-    if movie_data:
-        msg = """**Uploaded Movies:**\n"""
-
-" + "
-msg += "\n" + "\n".join(f"- {title}" for title in list(movie_data.keys())[:30])
-        await message.reply(msg)
+@bot.on_message(filters.command("uploaded"))
+async def uploaded_movies(message):
+    movie_data = load_movie_data()
+    msg = "**Uploaded Movies:**\n"
+    msg += "\n" + "\n".join(f"- {title}" for title in list(movie_data.keys())[:30])
+    await message.reply(msg)
     else:
         await message.reply("No movies in database.")
 
