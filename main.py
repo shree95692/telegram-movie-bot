@@ -1,134 +1,163 @@
+import os
+import re
+import json
+import asyncio
+import logging
+from datetime import datetime
+from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from flask import Flask
-from threading import Thread
-import os
-import json
-import requests
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from git import Repo
 
-# --- CONFIG ---
+# ==================== CONFIG ====================
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
-FORWARD_CHANNELS = ["stree2chaava2", "chaava2025"]
-FORWARD_CHANNEL_IDS = [-1002527549477, -1002512169097]
+SESSION_NAME = "my_session"  # session string file name (without .session)
+CHANNELS = ["stree2chaava2", "chaava2025"]
 ALERT_CHANNEL_ID = -1002661392627
-DB_FILE = "movies.json"
+FORWARD_CHANNEL_ID = -1002512169097
+OWNER_ID = 5163916480
+DB_FILE = "database.json"
 GITHUB_REPO = "shree95692/movie-db-backup"
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+# ===============================================
 
-# --- FLASK ---
-flask_app = Flask(__name__)
+app = Flask(__name__)
+bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 
-# --- DATABASE UTILS ---
+movie_db = {}
+
+logging.basicConfig(level=logging.INFO)
+
+
+# ========== Utility Functions ==========
+
 def load_db():
+    global movie_db
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_db(db):
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f, indent=2)
-
-def upload_to_github():
-    with open(DB_FILE, "r") as f:
-        content = f.read()
-
-    repo = GITHUB_REPO
-    file_path = "movies.json"
-    api_url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    res = requests.get(api_url, headers=headers)
-    if res.status_code == 200:
-        sha = res.json()["sha"]
-        data = {
-            "message": "Update DB",
-            "content": content.encode("utf-8").decode("utf-8"),
-            "sha": sha
-        }
+            movie_db = json.load(f)
     else:
-        data = {
-            "message": "Initial DB upload",
-            "content": content.encode("utf-8").decode("utf-8")
-        }
+        movie_db = {}
 
-    requests.put(api_url, headers=headers, json=data)
 
-# --- SMART TITLE EXTRACT ---
+def save_db():
+    with open(DB_FILE, "w") as f:
+        json.dump(movie_db, f, indent=2)
+
+
 def extract_title(text):
-    lines = text.splitlines()
-    for line in lines:
-        if "title" in line.lower():
-            parts = line.split(":")
-            if len(parts) > 1:
-                return parts[1].strip()
-            return line.strip()
+    match = re.search(r"(?i)(?:title\s*[:\-]?\s*|🎬\s*)?([\w\s\-]+)", text)
+    if match:
+        return match.group(1).strip().lower()
     return None
 
-# --- FLASK SERVER ---
-@flask_app.route('/')
-def home():
-    return "Bot is running!", 200
 
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=8080)
+async def backup_to_github():
+    try:
+        if not os.path.exists(".git"):
+            Repo.init(".")
+            repo = Repo(".")
+            repo.create_remote("origin", f"https://github.com/{GITHUB_REPO}.git")
+        repo = Repo(".")
+        repo.git.add(DB_FILE)
+        repo.index.commit(f"Backup on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        repo.remote().push("origin", "main")
+    except Exception as e:
+        logging.error(f"GITHUB BACKUP FAILED: {e}")
 
-# --- START BOT ---
-bot = Client("movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-db = load_db()
 
-@bot.on_message(filters.command("rescan"))
-async def rescan(_, msg: Message):
-    total = 0
-    for channel in FORWARD_CHANNEL_IDS:
-        async for message in bot.get_chat_history(channel, limit=300):
-            if message.text:
-                title = extract_title(message.text)
-                if title:
-                    db[title.lower()] = f"https://t.me/{(await bot.get_chat(channel)).username}/{message.message_id}"
-                    total += 1
-                else:
-                    await bot.send_message(ALERT_CHANNEL_ID, f"Title not found in post: https://t.me/c/{str(channel)[4:]}/{message.message_id}")
-    save_db(db)
-    upload_to_github()
-    await msg.reply(f"Scan completed! {total} movies added.")
-
-@bot.on_message(filters.command("uploaded"))
-async def uploaded(_, msg: Message):
-    if not db:
-        await msg.reply("Koi movie abhi tak upload nahi hui.")
-    else:
-        titles = list(db.keys())
-        message = "**Uploaded Movies:**\n" + "\n".join([f"- {t.title()}" for t in titles])
-        await msg.reply(message[:4000])
-
-@bot.on_message(filters.command("add"))
-async def add_movie(_, msg: Message):
-    if len(msg.command) < 3:
-        await msg.reply("Format: `/add MovieName https://t.me/channel/postid`")
+async def process_message(message: Message):
+    if not message.text:
         return
-    title = msg.command[1].lower()
-    link = msg.command[2]
-    db[title] = link
-    save_db(db)
-    upload_to_github()
-    await msg.reply("Movie manually added!")
+    title = extract_title(message.text)
+    if title:
+        movie_db[title] = f"https://t.me/{message.chat.username}/{message.message_id}"
+        save_db()
+        await bot.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.message_id)
+        await backup_to_github()
+    else:
+        await bot.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post: https://t.me/{message.chat.username}/{message.message_id}")
 
-@bot.on_message(filters.text & filters.private)
-async def search(_, msg: Message):
-    query = msg.text.lower()
-    for title, link in db.items():
-        if query in title:
-            await msg.reply(f"**Movie mil gaya!**\n{link}")
-            return
-    await msg.reply("Movie nahi mili! Request receive ho gayi hai, 5-6 ghante me upload ho jayegi.")
-    await bot.send_message(ALERT_CHANNEL_ID, f"Not found: {msg.text}")
 
-# --- Run both bot and web server ---
-Thread(target=run_flask).start()
-bot.run()
+# ========== Bot Handlers ==========
+
+@bot.on_message(filters.private & filters.text)
+async def search_handler(client, message):
+    query = message.text.strip().lower()
+    if query in movie_db:
+        await message.reply(f"✅ Movie Found:\n{movie_db[query]}")
+    else:
+        await message.reply("❌ Movie not found.\n\nYour request has been received. We will upload this movie in 5–6 hours.")
+        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie not found: {query} (requested by {message.from_user.id})")
+
+
+@bot.on_message(filters.command("update") & filters.user(OWNER_ID))
+async def manual_update(client, message):
+    try:
+        parts = message.text.split()
+        if len(parts) != 2:
+            return await message.reply("Usage: /update <post_id>")
+        post_id = int(parts[1])
+        for ch in CHANNELS:
+            try:
+                msg = await bot.get_messages(ch, post_id)
+                await process_message(msg)
+                return await message.reply("✅ Post updated manually.")
+            except:
+                continue
+        await message.reply("❌ Failed to fetch post.")
+    except Exception as e:
+        await message.reply(f"Error: {e}")
+
+
+@bot.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
+async def uploaded_list(client, message):
+    if not movie_db:
+        return await message.reply("No movies found in database.")
+    movies = "\n".join([f"• {title}" for title in movie_db.keys()])
+    await message.reply(f"🎬 Uploaded Movies:\n\n{movies[:4000]}")
+
+
+@bot.on_message(filters.channel & filters.chat(CHANNELS))
+async def channel_post_handler(client, message):
+    await process_message(message)
+
+
+# ========== Old Posts Update ==========
+
+async def scan_old_posts():
+    logging.info("🔁 Scanning old posts...")
+    for ch in CHANNELS:
+        try:
+            async for msg in bot.get_chat_history(ch, limit=1000):
+                await process_message(msg)
+        except Exception as e:
+            logging.error(f"Failed reading from {ch}: {e}")
+    logging.info("✅ Old post scan complete.")
+
+
+# ========== Flask Ping (Koyeb) ==========
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+
+# ========== Start Everything ==========
+
+async def main():
+    await bot.start()
+    load_db()
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(backup_to_github, "interval", hours=3)
+    scheduler.start()
+
+    await scan_old_posts()
+    print("✅ Bot running...")
+    app.run(host="0.0.0.0", port=8080)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
