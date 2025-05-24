@@ -1,12 +1,13 @@
 from pyrogram import Client, filters
 
-# Yahan apna bot token daalo
-BOT_TOKEN = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
+api_id = 25424751  # <-- aapka sahi API ID
+api_hash = "a9f8c974b0ac2e8b5fce86b32567af6b"  # <-- aapka sahi API Hash
+bot_token = "7073579407:AAHk8xHQGaKv7xpvxgFq5_UGISwLl7NkaDM"
 
-app = Client("simple_bot", bot_token=BOT_TOKEN)
+app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
 @app.on_message(filters.command("start"))
-def start(client, message):
-    message.reply_text("Bot chal raha hai! Aapka swagat hai.")
+def start_handler(client, message):
+    message.reply_text("Bot chal gaya hai! Welcome!")
 
 app.run()
