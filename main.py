@@ -10,4 +10,4 @@ app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 def start_handler(client, message):
     message.reply_text("Bot chal gaya hai! Welcome!")
 
-app.run()
+app.run(host="0.0.0.0", port=8000)
