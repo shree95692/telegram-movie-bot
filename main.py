@@ -1,113 +1,133 @@
-import json
-import re
 import os
+import json
+import requests
+from flask import Flask, request
 from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
 from pyrogram.types import Message
-from flask import Flask
 from threading import Thread
-import time
 
-# Telegram credentials
-api_id = 25424751
-api_hash = "a9f8c974b0ac2e8b5fce86b32567af6b"
-session_string = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
-
-client = Client(name="moviebot", api_id=api_id, api_hash=api_hash, session_string=session_string)
-
-# Config
-SOURCE_CHANNELS = ["stree2chaava2", "chaava2025"]
-FORWARD_CHANNEL_ID = -1002512169097
+API_ID = 25424751
+API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
+SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
+FORWARD_CHANNELS = ["stree2chaava2", "chaava2025"]
+FORWARD_CHANNEL_IDS = [-1002512169097]
 ALERT_CHANNEL_ID = -1002661392627
-OWNER_ID = 5163916480
+
 DB_FILE = "movies.json"
+GITHUB_REPO = "shree95692/movie-db-backup"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
-# Load or initialize database
-if os.path.exists(DB_FILE):
-    with open(DB_FILE, "r") as f:
-        movie_db = json.load(f)
-else:
-    movie_db = {}
-
-def save_db():
-    with open(DB_FILE, "w") as f:
-        json.dump(movie_db, f, indent=2)
-
-def extract_title(text: str) -> str:
-    try:
-        title_match = re.search(r"[Tt]itle\s*[:\-–]*\s*(.+)", text)
-        if title_match:
-            title = title_match.group(1).strip().split('\n')[0]
-            return title.lower()
-        else:
-            alt = re.findall(r"(?i)^(.+?)(?:\s*\|\s*|$|\n)", text.strip())
-            return alt[0].strip().lower() if alt else None
-    except:
-        return None
-
-async def process_message(msg: Message, channel_username: str):
-    if not msg.text and not msg.caption:
-        return
-    text = msg.text or msg.caption
-    title = extract_title(text)
-    if not title:
-        await client.send_message(ALERT_CHANNEL_ID, f"❗ Title extract fail in @{channel_username}/{msg.id}")
-        return
-    movie_db[title] = f"https://t.me/{channel_username}/{msg.id}"
-    save_db()
-    await client.send_message(FORWARD_CHANNEL_ID, f"✅ Saved: {title}\n🔗 {movie_db[title]}")
-
-@client.on_message(filters.command("start"))
-async def start(client, message):
-    await message.reply_text("Hello! Movie bot ready hai. Kisi bhi movie ka naam bhejo.")
-
-@client.on_message(filters.command("uploaded"))
-async def uploaded(client, message):
-    if not movie_db:
-        await message.reply("Koi movie abhi tak upload nahi hui.")
-    else:
-        titles = "\n".join([f"- {title}" for title in list(movie_db.keys())[:100]])
-        await message.reply(f"✅ Uploaded Movies:\n\n{titles}")
-
-@client.on_message(filters.text & ~filters.private)
-async def search_movie(client, message):
-    query = message.text.strip().lower()
-    result = None
-    for title in movie_db:
-        if query in title:
-            result = movie_db[title]
-            break
-    if result:
-        await message.reply(f"🎬 Movie Found:\n🔗 {result}")
-    else:
-        await message.reply("❌ Movie nahi mili!\n\n🕵️ Request receive ho gaya hai, 5-6 ghante mein upload ho jayegi.")
-        await client.send_message(ALERT_CHANNEL_ID, f"❗ Movie not found: {query}\nFrom: {message.from_user.id}")
-
-async def scan_all_old_posts():
-    for channel in SOURCE_CHANNELS:
-        try:
-            async for msg in client.iter_history(channel):
-                await process_message(msg, channel)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-
-@client.on_message(filters.chat(SOURCE_CHANNELS))
-async def new_post_handler(client, message):
-    await process_message(message, message.chat.username)
-
-# Flask for healthcheck (Koyeb)
 flask_app = Flask(__name__)
+bot = Client("session", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
+# --- DB UTILS ---
+def load_db():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_db(db):
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f, indent=2)
+
+def upload_to_github():
+    with open(DB_FILE, "r") as f:
+        content = f.read()
+    path = "movies.json"
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+    res = requests.get(url, headers=headers)
+    if res.status_code == 200:
+        sha = res.json()["sha"]
+        data = {
+            "message": "Update DB",
+            "content": content.encode("utf-8").decode("utf-8"),
+            "sha": sha
+        }
+        requests.put(url, headers=headers, json=data)
+    else:
+        data = {
+            "message": "Initial upload",
+            "content": content.encode("utf-8").decode("utf-8")
+        }
+        requests.put(url, headers=headers, json=data)
+
+# --- TITLE EXTRACT ---
+def extract_title(text):
+    lines = text.splitlines()
+    for line in lines:
+        if "title" in line.lower():
+            parts = line.split(":")
+            if len(parts) > 1:
+                return parts[1].strip()
+            return line.strip()
+    return None
+
+# --- UPLOAD MESSAGE ---
+def process_message(msg: Message, db):
+    title = extract_title(msg.text or msg.caption or "")
+    if not title:
+        bot.send_message(ALERT_CHANNEL_ID, f"❌ Failed to extract title:\n{msg.link}")
+        return
+    db[title.lower()] = msg.link
+    save_db(db)
+    upload_to_github()
+
+# --- SCAN OLD POSTS ---
+def scan_all_messages():
+    db = load_db()
+    for ch in FORWARD_CHANNELS:
+        for msg in bot.get_chat_history(ch):
+            try:
+                if msg.text or msg.caption:
+                    process_message(msg, db)
+            except Exception as e:
+                print("Error scanning:", e)
+
+# --- STARTUP SYNC ---
+def startup():
+    print("Syncing old messages...")
+    scan_all_messages()
+
+# --- BOT HANDLERS ---
+@bot.on_message(filters.command("rescan"))
+def handle_rescan(_, msg):
+    msg.reply("Rescanning all messages...")
+    scan_all_messages()
+    msg.reply("✅ Rescan complete.")
+
+@bot.on_message(filters.command("uploaded"))
+def handle_uploaded(_, msg):
+    db = load_db()
+    if db:
+        msg.reply("Uploaded Movies:\n\n" + "\n".join(db.keys()))
+    else:
+        msg.reply("Koi movie abhi tak upload nahi hui.")
+
+@bot.on_message(filters.text & filters.private)
+def search_movie(_, msg):
+    query = msg.text.strip().lower()
+    db = load_db()
+    result = db.get(query)
+    if result:
+        msg.reply(f"✅ Movie mil gaya!\n\n**Link:** {result}")
+    else:
+        msg.reply(
+            f"❌ Movie not found: **{msg.text}**\n"
+            "Request received. Movie 5-6 ghante me upload kar diya jayega."
+        )
+        bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie not found: {msg.text}")
+
+# --- FLASK ROUTE ---
 @flask_app.route('/')
-def index():
-    return "Bot is running!", 200
+def home():
+    return "Bot is running."
 
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=8000)
-
-def start():
-    Thread(target=run_flask).start()
-    client.run()
-
-if __name__ == "__main__":
-    start()
+# --- RUN ---
+Thread(target=bot.run).start()
+Thread(target=startup).start()
+flask_app.run(host="0.0.0.0", port=8080)
