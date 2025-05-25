@@ -19,6 +19,13 @@ BACKUP_REPO = "shree95692/movie-db-backup"
 DB_FILE = "movie_db.json"
 db = {}
 
+MOVIE_NOT_FOUND_REPLY = (
+    "**❌ Movie Not Found!**\n\n"
+    "**Aapki request mil gayi hai!**\n"
+    "Movie 5–6 ghante me upload kar di jayegi.\n\n"
+    "_Agar upload nahi hui toh admins ko alert kar diya jayega._"
+)
+
 app = Client(name="movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
 def save_db():
@@ -37,7 +44,6 @@ def extract_title(text):
         if match:
             return match.group(1).strip().lower()
         elif "(" in text:
-            # fallback title
             return text.split("(")[0].strip().lower()
     except:
         return None
@@ -77,30 +83,25 @@ async def handle_new_post(client, message: Message):
     backup_to_github()
     await app.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.id)
 
-@app.on_message(filters.private & filters.text)
+@app.on_message(filters.private & filters.text & ~filters.command(["upload", "uploaded", "refresh"]))
 async def handle_query(client, message: Message):
     query = message.text.strip().lower()
     if query in db:
         await message.reply(f"✅ Movie Found:\n{db[query]}")
     else:
-        await message.reply(
-            "**❌ Movie Not Found!**\n\n"
-            "Your request has been received.\n"
-            "**Movie will be uploaded in 5–6 hours.**\n\n"
-            "_If not uploaded, admins will be alerted._"
-        )
+        await message.reply(MOVIE_NOT_FOUND_REPLY)
         await app.send_message(ALERT_CHANNEL_ID, f"❗ Movie not found for query: `{query}` by user {message.from_user.id}")
 
 @app.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
 async def uploaded_list(client, message: Message):
     if not db:
-        await message.reply("Database is empty.")
+        await message.reply("❌ Movie list abhi empty hai.")
     else:
-        await message.reply("Uploaded Movies:\n" + "\n".join([f"• {x}" for x in db.keys()]))
+        await message.reply("✅ Uploaded Movies:\n" + "\n".join([f"• {x}" for x in db.keys()]))
 
 @app.on_message(filters.command("refresh") & filters.user(OWNER_ID))
 async def refresh_db(client, message: Message):
-    msg = await message.reply("Updating database from old posts...")
+    msg = await message.reply("♻️ Updating database from old posts...")
     count = 0
     for channel in CHANNELS:
         try:
@@ -114,10 +115,14 @@ async def refresh_db(client, message: Message):
                 else:
                     await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post: https://t.me/{channel}/{m.id}")
         except Exception as e:
-            await message.reply(f"Error reading channel {channel}: {e}")
+            await message.reply(f"⚠️ Error reading channel {channel}: {e}")
     save_db()
     backup_to_github()
     await msg.edit(f"✅ Database refreshed with {count} movies.")
+
+@app.on_message(filters.command("upload") & filters.user(OWNER_ID))
+async def handle_upload_command(client, message: Message):
+    await message.reply("✅ Upload command received. Aap manually movie upload kar sakte ho.")
 
 if __name__ == "__main__":
     load_db()
