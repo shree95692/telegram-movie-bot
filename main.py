@@ -1,12 +1,12 @@
 import os
 import asyncio
-import re
 import json
+import re
+from datetime import datetime
+import base64
+import requests
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
-from datetime import datetime
-import requests
-import base64
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
@@ -17,8 +17,9 @@ CHANNELS = ["@stree2chaava2", "@chaava2025"]
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
 BACKUP_REPO = "shree95692/movie-db-backup"
-
 DB_FILE = "movie_db.json"
+
+app = Client("movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 db = {}
 
 MOVIE_NOT_FOUND_REPLY = (
@@ -28,18 +29,21 @@ MOVIE_NOT_FOUND_REPLY = (
     "_Agar upload nahi hui toh admins ko alert kar diya jayega._"
 )
 
-app = Client("movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-
-def save_db():
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f, indent=2)
-
+# Load database
 def load_db():
     global db
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
             db = json.load(f)
+    else:
+        db = {}
 
+# Save database
+def save_db():
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f, indent=2)
+
+# Extract movie title
 def extract_title(text):
     try:
         match = re.search(r"[Tt]itle\s*[:\-–]\s*(.+)", text)
@@ -49,26 +53,28 @@ def extract_title(text):
             return text.split("(")[0].strip().lower()
         else:
             return text.strip().lower()[:50]
-    except:
+    except Exception:
         return None
 
+# Backup DB to GitHub
 def backup_to_github():
     try:
         token = os.environ.get("GITHUB_TOKEN")
         if not token:
-            print("GitHub token not set in environment.")
+            print("GitHub token missing")
             return
 
         url = f"https://api.github.com/repos/{BACKUP_REPO}/contents/movie_db.json"
         with open(DB_FILE, "r") as f:
-            content = base64.b64encode(f.read().encode()).decode()
+            content_raw = f.read()
+        content_encoded = base64.b64encode(content_raw.encode()).decode()
 
         res = requests.get(url, headers={"Authorization": f"token {token}"})
         sha = res.json().get("sha")
 
         data = {
             "message": f"Backup at {datetime.now()}",
-            "content": content,
+            "content": content_encoded,
             "branch": "main"
         }
         if sha:
@@ -76,54 +82,53 @@ def backup_to_github():
 
         headers = {"Authorization": f"token {token}"}
         response = requests.put(url, headers=headers, json=data)
-        if response.status_code == 201 or response.status_code == 200:
-            print("Backup successful")
+
+        if response.status_code in [200, 201]:
+            print("✅ GitHub Backup Done")
         else:
-            print("GitHub backup failed:", response.text)
+            print("❌ GitHub backup failed:", response.text)
     except Exception as e:
-        print("GitHub backup error:", e)
+        print("Error during GitHub backup:", e)
 
+# When new post arrives in monitored channels
 @app.on_message(filters.channel)
-async def handle_new_post(client, message: Message):
-    if message.chat.username not in [c[1:] for c in CHANNELS]:
-        return
-    if not message.text:
-        return
-    title = extract_title(message.text)
-    if not title:
-        await app.send_message(ALERT_CHANNEL_ID, f"❗ Movie title not found in post:\nhttps://t.me/{message.chat.username}/{message.id}")
-        return
-    db[title] = f"https://t.me/{message.chat.username}/{message.id}"
-    save_db()
-    backup_to_github()
-    await app.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.id)
+async def channel_post_handler(client, message: Message):
+    try:
+        if message.chat.username not in [c[1:] for c in CHANNELS]:
+            return
+        if not message.text:
+            return
+        title = extract_title(message.text)
+        if not title:
+            await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post:\nhttps://t.me/{message.chat.username}/{message.id}")
+            return
+        db[title] = f"https://t.me/{message.chat.username}/{message.id}"
+        save_db()
+        backup_to_github()
+        await app.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.id)
+    except Exception as e:
+        print("Channel post error:", e)
 
-@app.on_message(filters.private & filters.text & ~filters.command(["upload", "uploaded", "refresh", "start"]))
-async def handle_query(client, message: Message):
+# Handle movie search from users
+@app.on_message(filters.private & filters.text)
+async def user_query_handler(client, message: Message):
     query = message.text.strip().lower()
+    if query.startswith("/"):
+        return  # Ignore unknown commands
     if query in db:
         await message.reply(f"✅ Movie Found:\n{db[query]}")
     else:
         await message.reply(MOVIE_NOT_FOUND_REPLY)
         await app.send_message(ALERT_CHANNEL_ID, f"❗ Movie not found for query: `{query}` by user {message.from_user.id}")
 
-@app.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
-async def uploaded_list(client, message: Message):
-    if not db:
-        await message.reply("❌ Movie list abhi empty hai.")
-    else:
-        text = "✅ Uploaded Movies:\n\n"
-        for title in sorted(db.keys()):
-            text += f"• {title}\n"
-        await message.reply(text[:4096])
-
+# /refresh command for old posts
 @app.on_message(filters.command("refresh") & filters.user(OWNER_ID))
-async def refresh_db(client, message: Message):
-    msg = await message.reply("♻️ Updating database from old posts...")
+async def refresh_handler(client, message: Message):
+    msg = await message.reply("♻️ Scanning old posts...")
     count = 0
     for channel in CHANNELS:
         try:
-            async for m in app.get_chat_history(channel, limit=300):
+            async for m in app.get_chat_history(channel, limit=400):
                 if not m.text:
                     continue
                 title = extract_title(m.text)
@@ -131,20 +136,31 @@ async def refresh_db(client, message: Message):
                     db[title] = f"https://t.me/{channel[1:]}/{m.id}"
                     count += 1
                 else:
-                    await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post: https://t.me/{channel[1:]}/{m.id}")
+                    await app.send_message(ALERT_CHANNEL_ID, f"❗ No title in: https://t.me/{channel[1:]}/{m.id}")
         except Exception as e:
-            await message.reply(f"⚠️ Error reading channel {channel}: {e}")
+            await app.send_message(ALERT_CHANNEL_ID, f"❌ Error scanning {channel}: {e}")
     save_db()
     backup_to_github()
-    await msg.edit(f"✅ Database refreshed with {count} movies.")
+    await msg.edit(f"✅ Done! {count} movies added.")
 
+# /uploaded command to list movies
+@app.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
+async def uploaded_handler(client, message: Message):
+    if not db:
+        await message.reply("❌ Koi movie uploaded nahi hai.")
+    else:
+        movie_list = "\n".join([f"• {title}" for title in sorted(db.keys())])
+        await message.reply(f"✅ Uploaded Movies:\n\n{movie_list[:4000]}")
+
+# /upload dummy command
 @app.on_message(filters.command("upload") & filters.user(OWNER_ID))
-async def handle_upload_command(client, message: Message):
-    await message.reply("✅ Upload command received. Aap manually movie upload kar sakte ho.")
+async def upload_handler(client, message: Message):
+    await message.reply("✅ Upload command received. Manually movie upload karo channel pe.")
 
+# /start command
 @app.on_message(filters.command("start"))
 async def start_handler(client, message: Message):
-    await message.reply("👋 Hello! Send any movie name to check if it's available.")
+    await message.reply("👋 Welcome! Send any movie name to check if it's available.")
 
 if __name__ == "__main__":
     load_db()
