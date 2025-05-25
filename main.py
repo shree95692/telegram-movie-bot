@@ -9,11 +9,12 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from git import Repo
+import threading
 
 # ==================== CONFIG ====================
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_NAME = "my_session"  # session string file name (without .session)
+SESSION_NAME = "my_session"
 CHANNELS = ["stree2chaava2", "chaava2025"]
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
@@ -26,12 +27,9 @@ app = Flask(__name__)
 bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 
 movie_db = {}
-
 logging.basicConfig(level=logging.INFO)
 
-
 # ========== Utility Functions ==========
-
 def load_db():
     global movie_db
     if os.path.exists(DB_FILE):
@@ -40,18 +38,15 @@ def load_db():
     else:
         movie_db = {}
 
-
 def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(movie_db, f, indent=2)
 
-
 def extract_title(text):
-    match = re.search(r"(?i)(?:title\s*[:\-]?\s*|🎬\s*)?([\w\s\-]+)", text)
+    match = re.search(r"(?i)(?:title\s*[:\-]?\s*|\ud83c\udfac\s*)?([\w\s\-]+)", text)
     if match:
         return match.group(1).strip().lower()
     return None
-
 
 async def backup_to_github():
     try:
@@ -66,7 +61,6 @@ async def backup_to_github():
     except Exception as e:
         logging.error(f"GITHUB BACKUP FAILED: {e}")
 
-
 async def process_message(message: Message):
     if not message.text:
         return
@@ -77,20 +71,17 @@ async def process_message(message: Message):
         await bot.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.message_id)
         await backup_to_github()
     else:
-        await bot.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post: https://t.me/{message.chat.username}/{message.message_id}")
+        await bot.send_message(ALERT_CHANNEL_ID, f"\u2757 Title not found in post: https://t.me/{message.chat.username}/{message.message_id}")
 
-
-# ========== Bot Handlers ==========
-
+# ========== Handlers ==========
 @bot.on_message(filters.private & filters.text)
 async def search_handler(client, message):
     query = message.text.strip().lower()
     if query in movie_db:
-        await message.reply(f"✅ Movie Found:\n{movie_db[query]}")
+        await message.reply(f"\u2705 Movie Found:\n{movie_db[query]}")
     else:
-        await message.reply("❌ Movie not found.\n\nYour request has been received. We will upload this movie in 5–6 hours.")
-        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie not found: {query} (requested by {message.from_user.id})")
-
+        await message.reply("\u274C Movie not found.\n\nYour request has been received. We will upload this movie in 5–6 hours.")
+        await bot.send_message(ALERT_CHANNEL_ID, f"\u274C Movie not found: {query} (requested by {message.from_user.id})")
 
 @bot.on_message(filters.command("update") & filters.user(OWNER_ID))
 async def manual_update(client, message):
@@ -103,61 +94,68 @@ async def manual_update(client, message):
             try:
                 msg = await bot.get_messages(ch, post_id)
                 await process_message(msg)
-                return await message.reply("✅ Post updated manually.")
+                return await message.reply("\u2705 Post updated manually.")
             except:
                 continue
-        await message.reply("❌ Failed to fetch post.")
+        await message.reply("\u274C Failed to fetch post.")
     except Exception as e:
         await message.reply(f"Error: {e}")
 
+@bot.on_message(filters.command("add") & filters.user(OWNER_ID))
+async def manual_add(client, message):
+    try:
+        parts = message.text.split(None, 2)
+        if len(parts) != 3:
+            return await message.reply("Usage: /add <title> <link>")
+        title, link = parts[1].lower(), parts[2]
+        movie_db[title] = link
+        save_db()
+        await backup_to_github()
+        await message.reply(f"\u2705 Added manually: {title}\n{link}")
+    except Exception as e:
+        await message.reply(f"Error: {e}")
 
 @bot.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
 async def uploaded_list(client, message):
     if not movie_db:
         return await message.reply("No movies found in database.")
-    movies = "\n".join([f"• {title}" for title in movie_db.keys()])
-    await message.reply(f"🎬 Uploaded Movies:\n\n{movies[:4000]}")
-
+    movies = "\n".join([f"\u2022 {title}" for title in movie_db.keys()])
+    await message.reply(f"\ud83c\udfac Uploaded Movies ({len(movie_db)}):\n\n{movies[:4000]}")
 
 @bot.on_message(filters.channel & filters.chat(CHANNELS))
 async def channel_post_handler(client, message):
     await process_message(message)
 
-
 # ========== Old Posts Update ==========
-
 async def scan_old_posts():
-    logging.info("🔁 Scanning old posts...")
+    logging.info("\ud83d\udd00 Scanning old posts...")
     for ch in CHANNELS:
         try:
             async for msg in bot.get_chat_history(ch, limit=1000):
                 await process_message(msg)
         except Exception as e:
             logging.error(f"Failed reading from {ch}: {e}")
-    logging.info("✅ Old post scan complete.")
-
+    logging.info("\u2705 Old post scan complete.")
 
 # ========== Flask Ping (Koyeb) ==========
-
 @app.route('/')
 def home():
     return "Bot is running!"
 
+def run_flask():
+    app.run(host="0.0.0.0", port=8080, use_reloader=False)
 
 # ========== Start Everything ==========
-
 async def main():
     await bot.start()
     load_db()
-
     scheduler = AsyncIOScheduler()
     scheduler.add_job(backup_to_github, "interval", hours=3)
     scheduler.start()
-
-    await scan_old_posts()
-    print("✅ Bot running...")
-    app.run(host="0.0.0.0", port=8080)
-
+    asyncio.create_task(scan_old_posts())
+    threading.Thread(target=run_flask).start()
+    print("\u2705 Bot running...")
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     asyncio.run(main())
