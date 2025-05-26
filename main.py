@@ -15,12 +15,15 @@ API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
 OWNER_ID = 5163916480
 
-PRIVATE_CHANNEL_ID = -1002526458211
-PRIVATE_INVITE_LINK = "https://t.me/+ERHiEtkt5pI0ZmNl"
+CHANNELS = {
+    -1002512169097: "https://t.me/+ERHiEtkt5pI0ZmNl",  # @stree2chaava2
+    -1002033660137: "https://t.me/+abc123"  # @chaava2025 (example)
+}
+
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
-BACKUP_REPO = "shree95692/movie-db-backup"
 DB_FILE = "movie_db.json"
+BACKUP_REPO = "shree95692/movie-db-backup"
 
 app = Client("movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 db = {}
@@ -91,22 +94,21 @@ def backup_to_github():
 @app.on_message(filters.channel)
 async def channel_post_handler(client, message: Message):
     try:
-        if message.chat.id != PRIVATE_CHANNEL_ID:
+        if message.chat.id not in CHANNELS:
             return
         if not message.text:
             return
         title = extract_title(message.text)
         if not title:
-            await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post:\nhttps://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{message.id}")
+            await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found:\nhttps://t.me/c/{str(message.chat.id)[4:]}/{message.id}")
             return
-        db[title] = f"{PRIVATE_INVITE_LINK}\nhttps://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{message.id}"
+        link = f"{CHANNELS[message.chat.id]}\nhttps://t.me/c/{str(message.chat.id)[4:]}/{message.id}"
+        db[title] = link
         save_db()
         backup_to_github()
         await app.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.id)
     except Exception as e:
-        error_text = f"❌ Error in post ID {message.id}:\n{e}"
-        print(error_text)
-        await app.send_message(ALERT_CHANNEL_ID, error_text)
+        await app.send_message(ALERT_CHANNEL_ID, f"❌ Error in post ID {message.id}:\n{e}")
 
 @app.on_message(filters.private & filters.text)
 async def user_query_handler(client, message: Message):
@@ -114,54 +116,53 @@ async def user_query_handler(client, message: Message):
         query = message.text.strip().lower()
         if query.startswith("/"):
             return
-        if query in db:
-            await message.reply(f"✅ Movie Found:\n\n{db[query]}")
-        else:
-            await message.reply(MOVIE_NOT_FOUND_REPLY)
-            await app.send_message(ALERT_CHANNEL_ID, f"❗ Movie not found for query: `{query}` by user {message.from_user.id}")
+        for title, link in db.items():
+            if query in title:
+                return await message.reply(f"✅ Movie Found:\n\n{link}")
+        await message.reply(MOVIE_NOT_FOUND_REPLY)
+        await app.send_message(ALERT_CHANNEL_ID, f"❗ Not found: `{query}` by user {message.from_user.id}")
     except Exception as e:
         print("Error in user_query_handler:", e)
 
 @app.on_message(filters.command("refresh") & filters.user(OWNER_ID))
 async def refresh_handler(client, message: Message):
-    msg = await message.reply("♻️ Scanning old posts...")
+    msg = await message.reply("♻️ Scanning all posts...")
     count = 0
-    try:
-        async for m in app.get_chat_history(PRIVATE_CHANNEL_ID, limit=1000):
-            try:
+    for channel_id in CHANNELS:
+        try:
+            async for m in app.get_chat_history(channel_id, limit=1000):
                 if not m.text:
                     continue
                 title = extract_title(m.text)
                 if title:
-                    db[title] = f"{PRIVATE_INVITE_LINK}\nhttps://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{m.id}"
+                    link = f"{CHANNELS[channel_id]}\nhttps://t.me/c/{str(channel_id)[4:]}/{m.id}"
+                    db[title] = link
                     count += 1
                 else:
-                    await app.send_message(ALERT_CHANNEL_ID, f"❗ No title in: https://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{m.id}")
-            except Exception as inner_err:
-                await app.send_message(ALERT_CHANNEL_ID, f"❌ Error in message {m.id}: {inner_err}")
-    except Exception as e:
-        await app.send_message(ALERT_CHANNEL_ID, f"❌ Error scanning channel: {e}")
+                    await app.send_message(ALERT_CHANNEL_ID, f"❗ No title: https://t.me/c/{str(channel_id)[4:]}/{m.id}")
+        except Exception as e:
+            await app.send_message(ALERT_CHANNEL_ID, f"❌ Error in {channel_id}: {e}")
     save_db()
     backup_to_github()
-    await msg.edit(f"✅ Done! {count} movies added.")
+    await msg.edit(f"✅ Refreshed! {count} movies added.")
 
 @app.on_message(filters.command("uploaded") & filters.user(OWNER_ID))
 async def uploaded_handler(client, message: Message):
     if not db:
         await message.reply("❌ Koi movie uploaded nahi hai.")
     else:
-        movie_list = "\n".join([f"• {title}" for title in sorted(db.keys())])
-        await message.reply(f"✅ Uploaded Movies:\n\n{movie_list[:4000]}")
+        text = "\n".join([f"• {t}" for t in sorted(db.keys())])
+        await message.reply(f"✅ Uploaded Movies:\n\n{text[:4000]}")
 
 @app.on_message(filters.command("upload") & filters.user(OWNER_ID))
 async def manual_upload(client, message: Message):
     try:
         parts = message.text.split(" ", 2)
         if len(parts) < 3:
-            return await message.reply("❗ Use format: /upload movie_name post_link")
+            return await message.reply("❗ Format: /upload movie_name post_link")
         title = parts[1].strip().lower()
         link = parts[2].strip()
-        db[title] = f"{PRIVATE_INVITE_LINK}\n{link}"
+        db[title] = link
         save_db()
         backup_to_github()
         await message.reply("✅ Movie manually uploaded.")
@@ -170,12 +171,9 @@ async def manual_upload(client, message: Message):
 
 @app.on_message(filters.command("start"))
 async def start_handler(client, message: Message):
-    try:
-        await message.reply("👋 Hello! Movie bot ready hai. Kisi bhi movie ka naam bhejo.")
-    except Exception as e:
-        print("Error in /start:", e)
+    await message.reply("👋 Hello! Movie bot ready hai. Movie ka naam bhejo aur link lo.")
 
-# ---- Flask Dummy Server for Koyeb Health Check ----
+# Flask server for Koyeb health check
 flask_app = Flask("healthcheck")
 
 @flask_app.route("/")
