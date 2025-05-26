@@ -13,10 +13,8 @@ API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
 OWNER_ID = 5163916480
 
-# Only one private channel
-CHANNEL_ID = -1002526458211
-INVITE_LINK = "https://t.me/+ERHiEtkt5pI0ZmNl"
-
+PRIVATE_CHANNEL_ID = -1002526458211
+PRIVATE_INVITE_LINK = "https://t.me/+ERHiEtkt5pI0ZmNl"
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
 BACKUP_REPO = "shree95692/movie-db-backup"
@@ -26,10 +24,9 @@ app = Client("movie-bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSI
 db = {}
 
 MOVIE_NOT_FOUND_REPLY = (
-    "**❌ Movie Not Found!**\n\n"
-    "**Aapki request mil gayi hai!**\n"
-    "Movie 5–6 ghante me upload kar di jayegi.\n\n"
-    "_Agar upload nahi hui toh admins ko alert kar diya jayega._"
+    "**❌ Movie nahi mili!**\n\n"
+    "🕵️ Request receive ho gaya hai, 5-6 ghante mein upload ho jayegi.\n\n"
+    "_Agar upload nahi hui toh admin ko alert chala jaayega._"
 )
 
 def load_db():
@@ -92,15 +89,15 @@ def backup_to_github():
 @app.on_message(filters.channel)
 async def channel_post_handler(client, message: Message):
     try:
-        if message.chat.id != CHANNEL_ID:
+        if message.chat.id != PRIVATE_CHANNEL_ID:
             return
         if not message.text:
             return
         title = extract_title(message.text)
         if not title:
-            await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post:\nhttps://t.me/c/{str(CHANNEL_ID)[4:]}/{message.id}")
+            await app.send_message(ALERT_CHANNEL_ID, f"❗ Title not found in post:\n{PRIVATE_INVITE_LINK}")
             return
-        db[title] = str(message.id)
+        db[title] = f"{PRIVATE_INVITE_LINK}\nhttps://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{message.id}"
         save_db()
         backup_to_github()
         await app.forward_messages(FORWARD_CHANNEL_ID, message.chat.id, message.id)
@@ -113,10 +110,7 @@ async def user_query_handler(client, message: Message):
     if query.startswith("/"):
         return
     if query in db:
-        post_id = db[query]
-        post_link = f"https://t.me/c/{str(CHANNEL_ID)[4:]}/{post_id}"
-        reply_text = f"✅ **Movie mil gayi bhai!**\n\n**Channel Invite Link:** {INVITE_LINK}\n**Direct Post Link:** {post_link}"
-        await message.reply(reply_text)
+        await message.reply(f"✅ Movie Found:\n\n{db[query]}")
     else:
         await message.reply(MOVIE_NOT_FOUND_REPLY)
         await app.send_message(ALERT_CHANNEL_ID, f"❗ Movie not found for query: `{query}` by user {message.from_user.id}")
@@ -126,15 +120,15 @@ async def refresh_handler(client, message: Message):
     msg = await message.reply("♻️ Scanning old posts...")
     count = 0
     try:
-        async for m in app.get_chat_history(CHANNEL_ID, limit=400):
+        async for m in app.get_chat_history(PRIVATE_CHANNEL_ID, limit=500):
             if not m.text:
                 continue
             title = extract_title(m.text)
             if title:
-                db[title] = str(m.id)
+                db[title] = f"{PRIVATE_INVITE_LINK}\nhttps://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{m.id}"
                 count += 1
             else:
-                await app.send_message(ALERT_CHANNEL_ID, f"❗ No title in: https://t.me/c/{str(CHANNEL_ID)[4:]}/{m.id}")
+                await app.send_message(ALERT_CHANNEL_ID, f"❗ No title in: https://t.me/c/{str(PRIVATE_CHANNEL_ID)[4:]}/{m.id}")
     except Exception as e:
         await app.send_message(ALERT_CHANNEL_ID, f"❌ Error scanning channel: {e}")
     save_db()
@@ -150,12 +144,23 @@ async def uploaded_handler(client, message: Message):
         await message.reply(f"✅ Uploaded Movies:\n\n{movie_list[:4000]}")
 
 @app.on_message(filters.command("upload") & filters.user(OWNER_ID))
-async def upload_handler(client, message: Message):
-    await message.reply("✅ Upload command received. Manually movie upload karo channel pe.")
+async def manual_upload(client, message: Message):
+    try:
+        parts = message.text.split(" ", 2)
+        if len(parts) < 3:
+            return await message.reply("❗ Use format: /upload movie_name post_link")
+        title = parts[1].strip().lower()
+        link = parts[2].strip()
+        db[title] = f"{PRIVATE_INVITE_LINK}\n{link}"
+        save_db()
+        backup_to_github()
+        await message.reply("✅ Movie manually uploaded.")
+    except Exception as e:
+        await message.reply(f"❌ Error: {e}")
 
 @app.on_message(filters.command("start"))
 async def start_handler(client, message: Message):
-    await message.reply("👋 Welcome! Send any movie name to check if it's available.")
+    await message.reply("👋 Welcome! Just send me any movie name to check availability.")
 
 if __name__ == "__main__":
     load_db()
