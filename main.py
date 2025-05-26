@@ -7,6 +7,8 @@ import base64
 import requests
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
+from flask import Flask
+from threading import Thread
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
@@ -162,6 +164,17 @@ async def manual_upload(client, message: Message):
 async def start_handler(client, message: Message):
     await message.reply("👋 Welcome! Just send me any movie name to check availability.")
 
+# ---- Flask Dummy Server for Koyeb Health Check ----
+flask_app = Flask("healthcheck")
+
+@flask_app.route("/")
+def home():
+    return "Bot is alive!"
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=8000)
+
 if __name__ == "__main__":
     load_db()
+    Thread(target=run_flask).start()
     app.run()
