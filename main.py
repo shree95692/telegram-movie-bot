@@ -15,9 +15,10 @@ API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
 OWNER_ID = 5163916480
 
+# ✅ Updated with private channel IDs
 CHANNELS = {
-    -1002512169097: "https://t.me/+ERHiEtkt5pI0ZmNl",  # @stree2chaava2
-    -1002033660137: "https://t.me/+abc123"  # @chaava2025 (example)
+    -1002526458211: "https://t.me/c/1526458211",  # Channel 1
+    -1002397054969: "https://t.me/c/1397054969"   # Channel 2
 }
 
 ALERT_CHANNEL_ID = -1002661392627
