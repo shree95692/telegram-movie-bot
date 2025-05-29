@@ -1,84 +1,153 @@
+import os
+import json
+import asyncio
 from flask import Flask
-from pyrogram import Client, filters, idle
-import json, os, asyncio, nest_asyncio
+from pyrogram import Client, filters
+from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageDeleted
 
+# ========== CONFIGURATION ==========
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
-SESSION_STRING = "BQGD828AMUcvjUw-OoeEq9vsJglHO8FPUWRDh8MGHxV5wwvSLlpwC0_lve3qdVK-7b_0mGsKD87_-6eIS-vqD5prMNL7GjosptVTESutY3kSY3E3MYl9bq8A26SUVutyBze6xDjZP_vY_uRkXjTvEe9yu3EkGgVbndao4HAhkznY_8QIseapTYs6f8AwGXk_LkOOplSE-RJR-IuOlB3WKoaPehYOSjDRhiiKVAmt9fwzTDq1cDntoOcV6EBrzBVia1TQClWX1jPaZmNQQZ96C8mpvjMfWnFVRlM8pjmI9CPbfoNNB2tO4kuEDr2BRBdlB244CC83wV80IYO66pZ5yI7IWC7FqwAAAAEzyxzAAA"
+SESSION_NAME = "my"
+
+MOVIE_CHANNELS = {
+    -1002526458211: "https://t.me/+QBp_mXI0IT0zZmVl",
+    -1002397054969: "https://t.me/+xrFyWUEU5MJiMWU1"
+}
+
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
-CHANNELS = ["stree2chaava2", "chaava2025"]
-MOVIE_DB = "movies.json"
-BOT_USERNAME = "Movie_request_4k_group_bot"
 
+MOVIE_DB_FILE = "movie_db.json"
+
+# GitHub backup config (dummy here – will add real push in future)
+GITHUB_REPO = "shree95692/movie-db-backup"
+DB_FILENAME_ON_GITHUB = "movie_db.json"
+
+# ========== FLASK SETUP ==========
 app = Flask(__name__)
-bot = Client(":memory:", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
-movie_data = {}
+@app.route('/')
+def home():
+    return "Bot is alive!"
 
-def extract_title(text):
-    for line in text.splitlines():
-        line = line.strip()
-        if "title" in line.lower():
-            return line.split(":")[-1].strip(" :–👉|")
-    return None
+# ========== HELPER FUNCTIONS ==========
 
 def load_db():
-    global movie_data
-    if os.path.exists(MOVIE_DB):
-        with open(MOVIE_DB, "r") as f:
-            movie_data = json.load(f)
-    else:
-        movie_data = {}
+    if os.path.exists(MOVIE_DB_FILE):
+        with open(MOVIE_DB_FILE, "r") as f:
+            return json.load(f)
+    return {}
 
-def save_db():
-    with open(MOVIE_DB, "w") as f:
-        json.dump(movie_data, f, indent=2)
+def save_db(data):
+    with open(MOVIE_DB_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
-async def scan_all_posts():
-    for channel in CHANNELS:
-        try:
-            async for msg in bot.get_chat_history(channel):
-                if msg.text:
-                    title = extract_title(msg.text)
-                    if title:
-                        movie_data[title.lower()] = f"https://t.me/{channel}/{msg.message_id}"
-                        await bot.forward_messages(FORWARD_CHANNEL_ID, channel, msg.message_id)
-                    else:
-                        await bot.forward_messages(ALERT_CHANNEL_ID, channel, msg.message_id)
-        except Exception as e:
-            print(f"Error reading {channel}: {e}")
-    save_db()
+def extract_title(text):
+    lines = text.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        if "title" in line.lower() or "movie" in line.lower():
+            title = line.split(":", 1)[-1].strip(" 🎬-")
+            if len(title) >= 2:
+                return title.lower()
+    return None
+
+# ========== BOT SETUP ==========
+bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
+movie_db = load_db()
 
 @bot.on_message(filters.private & filters.text)
-async def movie_search(client, message):
-    query = message.text.strip().lower()
-    link = movie_data.get(query)
-    if link:
-        await message.reply(f"**🎬 Movie Found:**
-{link}")
-    else:
+async def search_movie(client, message):
+    query = message.text.lower()
+    found = False
+    for title, info in movie_db.items():
+        if query in title:
+            channel_id = info["channel_id"]
+            msg_id = info["message_id"]
+            try:
+                invite = MOVIE_CHANNELS.get(int(channel_id), "")
+                link = f"{invite}/{msg_id}" if invite else f"https://t.me/c/{str(channel_id)[4:]}/{msg_id}"
+                await message.reply(f"🎬 Movie Found:\n👉 {link}")
+                found = True
+                break
+            except Exception as e:
+                await message.reply("⚠️ Error generating link.")
+                found = True
+                break
+
+    if not found:
         await message.reply(
-            "**❌ Movie Not Found**
-Your request has been received.
-Movie will be uploaded in 5–6 hours.
-Stay tuned!"
+            "❌ Movie Not Found\n\nYour request has been received.\nMovie will be uploaded in 5–6 hours.\nStay tuned!"
         )
-        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{message.text}` by [{message.from_user.first_name}](tg://user?id={message.from_user.id})")
+        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie Not Found:\n\n🔍 `{query}`\nFrom: {message.from_user.mention}")
 
-@app.route("/")
-def index():
-    return "Bot is running!"
+@bot.on_message(filters.command("upload_db") & filters.private)
+async def manual_upload(client, message):
+    try:
+        await message.reply_document(MOVIE_DB_FILE, caption="📁 Current movie database backup file.")
+    except Exception as e:
+        await message.reply("❌ Failed to upload DB file.")
 
-async def main():
-    load_db()
-    await bot.start()
-    await scan_all_posts()
-    print("Bot is ready")
-    await idle()
+async def update_from_channel(channel_id):
+    try:
+        async for msg in bot.iter_history(channel_id):
+            if msg.text and msg.message_id:
+                title = extract_title(msg.text)
+                if not title:
+                    await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.message_id)
+                    continue
+                movie_db[title.lower()] = {
+                    "channel_id": channel_id,
+                    "message_id": msg.message_id
+                }
+                await bot.copy_message(FORWARD_CHANNEL_ID, channel_id, msg.message_id)
+        save_db(movie_db)
+    except Exception as e:
+        print(f"[ERROR] Failed to read channel {channel_id}: {e}")
 
-if __name__ == "__main__":
-    nest_asyncio.apply()
-    loop = asyncio.get_event_loop()
-    loop.create_task(main())
+@bot.on_message(filters.channel)
+async def new_channel_post(client, message):
+    channel_id = message.chat.id
+    msg_id = message.message_id
+    if message.text:
+        title = extract_title(message.text)
+        if not title:
+            await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg_id)
+            return
+        movie_db[title.lower()] = {
+            "channel_id": channel_id,
+            "message_id": msg_id
+        }
+        save_db(movie_db)
+        await bot.copy_message(FORWARD_CHANNEL_ID, channel_id, msg_id)
+
+async def remove_deleted_posts():
+    to_remove = []
+    for title, info in movie_db.items():
+        try:
+            await bot.get_messages(info["channel_id"], info["message_id"])
+        except (MessageIdInvalid, MessageDeleted, ChannelPrivate):
+            to_remove.append(title)
+    for title in to_remove:
+        del movie_db[title]
+    if to_remove:
+        save_db(movie_db)
+
+async def startup_tasks():
+    print("🔄 Loading all channel posts...")
+    for channel in MOVIE_CHANNELS:
+        await update_from_channel(channel)
+    await remove_deleted_posts()
+    print("✅ Startup tasks complete.")
+
+def run_flask():
     app.run(host="0.0.0.0", port=8000)
+
+# ========== STARTUP ==========
+if __name__ == "__main__":
+    import threading
+    threading.Thread(target=run_flask).start()
+    bot.run(startup_tasks())
