@@ -3,7 +3,7 @@ import json
 import asyncio
 from flask import Flask
 from pyrogram import Client, filters
-from pyrogram.errors import MessageIdInvalid, ChannelPrivate
+from pyrogram.errors import MessageIdInvalid, MessageDeleted, ChannelPrivate
 
 # ========== CONFIGURATION ==========
 API_ID = 25424751
@@ -58,6 +58,10 @@ def extract_title(text):
 # ========== BOT SETUP ==========
 bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 movie_db = load_db()
+
+@bot.on_message(filters.private & filters.command("start"))
+async def start_command(client, message):
+    await message.reply("👋 Welcome! Send me a movie name to search.")
 
 @bot.on_message(filters.private & filters.text)
 async def search_movie(client, message):
