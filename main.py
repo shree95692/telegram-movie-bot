@@ -3,8 +3,7 @@ import json
 import asyncio
 from flask import Flask
 from pyrogram import Client, filters
-from pyrogram.errors import MessageIdInvalid, MessageDeleted, ChannelPrivate
-
+from pyrogram.errors import MessageIdInvalid, ChannelPrivate
 # ========== CONFIGURATION ==========
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
