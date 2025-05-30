@@ -102,7 +102,7 @@ async def manual_upload(client, message):
 
 async def update_from_channel(channel_id):
     try:
-        async for msg in bot.iter_history(channel_id):
+        async for msg in bot.get_chat_history(channel_id):
             if msg.text and msg.message_id:
                 title = extract_title(msg.text)
                 if not title:
