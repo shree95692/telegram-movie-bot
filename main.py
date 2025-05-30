@@ -162,7 +162,7 @@ async def start_bot(client):
 if __name__ == "__main__":
     import threading
     threading.Thread(target=run_flask).start()
-    bot.run(start_bot)
+    bot.run(start_bot(bot))
 async def start_bot(client):
     await startup_tasks()
 
