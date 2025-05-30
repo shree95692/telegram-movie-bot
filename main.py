@@ -144,7 +144,7 @@ async def startup_tasks():
     for channel in MOVIE_CHANNELS:
         await update_from_channel(channel)
     await remove_deleted_posts()
-    print("✅ Startup tasks complete.")
+    await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup tasks complete.")
 
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
