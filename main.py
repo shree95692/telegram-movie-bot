@@ -60,7 +60,13 @@ movie_db = load_db()
 
 @bot.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
-    await message.reply("👋 Welcome! Send me a movie name to search.")
+    await message.reply(
+    "👋 **Welcome to Movie Request Bot!**\n\n"
+    "📽️ Just send me a **movie name** and I’ll find it for you if it’s uploaded.\n"
+    "📥 If not found, it will be uploaded in **5–6 hours**.\n"
+    "📁 Use `/upload_db` to get current movie list (if you're admin).\n\n"
+    "✅ Bot is online and working!"
+)
 
 @bot.on_message(filters.private & filters.text)
 async def search_movie(client, message):
