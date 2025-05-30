@@ -156,10 +156,13 @@ def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
 # ========== STARTUP ==========
+async def start_bot(client):
+    await startup_tasks()
+
 if __name__ == "__main__":
     import threading
     threading.Thread(target=run_flask).start()
-    @bot.on_start()
+    bot.run(start_bot)
 async def start_bot(client):
     await startup_tasks()
 
