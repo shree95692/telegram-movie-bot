@@ -109,7 +109,7 @@ async def update_from_channel(channel_id):
                 await bot.copy_message(FORWARD_CHANNEL_ID, channel_id, msg.message_id)
         save_db(movie_db)
     except Exception as e:
-        print(f"[ERROR] Failed to read channel {channel_id}: {e}")
+        await bot.send_message(ALERT_CHANNEL_ID, f"⚠️ Failed to read channel {channel_id}\nError: `{e}`")
 
 @bot.on_message(filters.channel)
 async def new_channel_post(client, message):
