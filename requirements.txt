@@ -1,5 +1,5 @@
-pyrogram==2.0.39
-tgcrypto==1.2.4
-flask==2.2.3
-requests==2.31.0
-gitpython==3.1.36
+flask==2.2.5
+werkzeug==2.3.0
+pyrogram==2.0.106
+tgcrypto==1.2.5
+gitpython==3.1.40
