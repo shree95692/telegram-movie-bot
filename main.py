@@ -146,7 +146,7 @@ async def remove_deleted_posts():
     for title, info in movie_db.items():
         try:
             await bot.get_messages(info["channel_id"], info["message_id"])
-        except (MessageIdInvalid, MessageDeleted, ChannelPrivate):
+        except (MessageIdInvalid, ChannelPrivate):
             to_remove.append(title)
     for title in to_remove:
         del movie_db[title]
