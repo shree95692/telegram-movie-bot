@@ -10,8 +10,8 @@ API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 SESSION_NAME = "my"
 
 MOVIE_CHANNELS = {
-    -1002526458211: "https://t.me/+QBp_mXI0IT0zZmVl",
-    -1002397054969: "https://t.me/+xrFyWUEU5MJiMWU1"
+    "stree2chaava2": "https://t.me/stree2chaava2",
+    "chaava2025": "https://t.me/chaava2025"
 }
 
 ALERT_CHANNEL_ID = -1002661392627
