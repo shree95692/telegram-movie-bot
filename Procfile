@@ -1,1 +1,1 @@
-web: python preload_peers.py
+web: python main.py
