@@ -77,7 +77,16 @@ async def search_movie(client, message):
             channel_id = info["channel_id"]
             msg_id = info["message_id"]
             try:
-                invite = MOVIE_CHANNELS.get(int(channel_id), "")
+                username_or_link = ""
+for uname, link in MOVIE_CHANNELS.items():
+    try:
+        chat = await bot.get_chat(uname)
+        if chat.id == channel_id:
+            username_or_link = f"https://t.me/{uname}"
+            break
+    except:
+        continue
+link = f"{username_or_link}/{msg_id}" if username_or_link else f"https://t.me/c/{str(channel_id)[4:]}/{msg_id}"
                 link = f"{invite}/{msg_id}" if invite else f"https://t.me/c/{str(channel_id)[4:]}/{msg_id}"
                 await message.reply(f"🎬 Movie Found:\n👉 {link}")
                 found = True
