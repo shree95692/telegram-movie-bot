@@ -147,7 +147,12 @@ async def remove_deleted_posts():
 
 async def startup_tasks():
     print("🔄 Loading all channel posts...")
-    for channel in MOVIE_CHANNELS:
+    for username in MOVIE_CHANNELS:
+    try:
+        chat = await bot.get_chat(username)
+        await update_from_channel(chat.id)
+    except Exception as e:
+        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Failed to load channel @{username}\nError: `{e}`")
         await update_from_channel(channel)
     await remove_deleted_posts()
     await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup tasks complete.")
