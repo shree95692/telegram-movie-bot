@@ -27,6 +27,9 @@ app = Flask(__name__)
 def home():
     return "✅ Bot is alive!"
 
+def run_flask():
+    app.run(host="0.0.0.0", port=8000)
+
 # ========== HELPER FUNCTIONS ==========
 def load_db():
     if os.path.exists(MOVIE_DB_FILE):
@@ -39,12 +42,9 @@ def save_db(data):
         json.dump(data, f, indent=2)
 
 def extract_title(text):
-    # Normalize text
     text = text.replace("**", "").replace("__", "")
-    
-    # Priority 1: Look for known title keywords
     patterns = [
-        r"[🎬🔊🆕🚀📥]?\s*(title|movie|film)?\s*[:\-]?\s*([A-Za-z0-9\s\.\-]{2,40})",
+        r"[🎬🔊🆕🚀📥]?\s*(title|movie|film)?\s*[:\-]?\s*([A-Za-z0-9\s\-\.]{2,40})",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -53,12 +53,10 @@ def extract_title(text):
             if title and 2 <= len(title) <= 40:
                 return title
 
-    # Priority 2: Try first 1-2 lines that are short
     for line in text.splitlines():
         line = line.strip()
         if 2 <= len(line) <= 40 and any(c.isalpha() for c in line):
             return line.lower()
-    
     return None
 
 # ========== BOT SETUP ==========
@@ -107,15 +105,18 @@ async def search_movie(client, message):
     for title, info in movie_db.items():
         if query in title:
             try:
-                username_or_link = next((f"https://t.me/{uname}" for uname, link in MOVIE_CHANNELS.items()
-                                         if await bot.get_chat(uname).id == info["channel_id"]), None)
-                link = f"{username_or_link}/{info['message_id']}" if username_or_link else f"https://t.me/c/{str(info['channel_id'])[4:]}/{info['message_id']}"
+                channel_link = next(
+                    (link for uname, link in MOVIE_CHANNELS.items()
+                     if await bot.get_chat(uname).id == info["channel_id"]),
+                    None
+                )
+                link = f"{channel_link}/{info['message_id']}" if channel_link else f"https://t.me/c/{str(info['channel_id'])[4:]}/{info['message_id']}"
                 await message.reply(f"🎬 **Movie Found:**\n👉 {link}")
                 found = True
                 break
             except Exception as e:
                 await message.reply("⚠️ Error generating movie link.")
-                print(f"[Error] Movie link gen: {e}")
+                print(f"[Error] Movie link: {e}")
                 found = True
                 break
     if not found:
@@ -125,7 +126,7 @@ async def search_movie(client, message):
         try:
             await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie Not Found:\n🔍 `{query}`\nFrom: {message.from_user.mention}")
         except Exception as e:
-            print(f"[Alert Failed] Movie not found alert: {e}")
+            print(f"[Alert Failed] Not Found Alert: {e}")
 
 @bot.on_message(filters.channel)
 async def new_channel_post(client, message):
@@ -135,7 +136,7 @@ async def new_channel_post(client, message):
             try:
                 await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.id)
             except Exception as e:
-                print(f"[Alert Failed] Forwarding unknown title: {e}")
+                print(f"[Alert Failed] Forward unknown title: {e}")
             return
         movie_db[title] = {
             "channel_id": message.chat.id,
@@ -199,19 +200,13 @@ async def startup_tasks():
     except Exception as e:
         print(f"[Alert Failed] Startup complete: {e}")
 
-# ========== FLASK RUNNER ==========
-def run_flask():
-    app.run(host="0.0.0.0", port=8000)
-
 # ========== MAIN ==========
 if __name__ == "__main__":
-    def start_bot():
-        asyncio.run(run_bot())
+    threading.Thread(target=run_flask).start()
 
-    async def run_bot():
+    async def main():
         await bot.start()
         await startup_tasks()
         await idle()
 
-    threading.Thread(target=run_flask).start()
-    threading.Thread(target=start_bot).start()
+    asyncio.run(main())
