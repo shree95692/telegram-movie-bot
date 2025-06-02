@@ -50,7 +50,7 @@ def extract_title(text):
             if len(title) >= 2:
                 return title.lower()
     for line in lines:
-        if len(line.strip()) <= 30 and len(line.strip()) >= 2:
+        if 2 <= len(line.strip()) <= 30:
             return line.strip().lower()
     return None
 
@@ -64,7 +64,8 @@ async def start_command(client, message):
         "👋 **Welcome to Movie Request Bot!**\n\n"
         "🎞️ Send any movie name to search.\n"
         "📥 If not found, it'll be uploaded in 5–6 hours.\n"
-        "🧾 Use /upload_db to get current movie list (admin only).\n\n"
+        "🧾 Use /upload_db to get current movie list (admin only).\n"
+        "📋 Use /uploaded_movies to check all uploaded movies.\n\n"
         "✅ Bot is online."
     )
 
@@ -74,6 +75,23 @@ async def upload_db(client, message):
         await message.reply_document(MOVIE_DB_FILE, caption="📁 Movie DB backup.")
     except:
         await message.reply("❌ Failed to upload movie DB file.")
+
+@bot.on_message(filters.private & filters.command("uploaded_movies"))
+async def uploaded_movies(client, message):
+    movie_list = list(movie_db.keys())
+    if not movie_list:
+        await message.reply("⚠️ No movies in the database.")
+        return
+
+    movie_list.sort()
+    text = "**🎬 Uploaded Movies:**\n\n"
+    for i, title in enumerate(movie_list, start=1):
+        text += f"{i}. {title}\n"
+        if len(text) > 3800:  # Telegram message length limit
+            await message.reply(text)
+            text = ""
+    if text:
+        await message.reply(text)
 
 @bot.on_message(filters.private & filters.text)
 async def search_movie(client, message):
@@ -88,8 +106,9 @@ async def search_movie(client, message):
                 await message.reply(f"🎬 **Movie Found:**\n👉 {link}")
                 found = True
                 break
-            except:
+            except Exception as e:
                 await message.reply("⚠️ Error generating movie link.")
+                print(f"[Error] Movie link gen: {e}")
                 found = True
                 break
     if not found:
@@ -107,16 +126,19 @@ async def new_channel_post(client, message):
         title = extract_title(message.text)
         if not title:
             try:
-                await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
+                await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.id)
             except Exception as e:
                 print(f"[Alert Failed] Forwarding unknown title: {e}")
             return
         movie_db[title] = {
             "channel_id": message.chat.id,
-            "message_id": message.message_id
+            "message_id": message.id
         }
         save_db(movie_db)
-        await bot.copy_message(FORWARD_CHANNEL_ID, message.chat.id, message.message_id)
+        try:
+            await bot.copy_message(FORWARD_CHANNEL_ID, message.chat.id, message.id)
+        except:
+            pass
 
 async def update_from_channel(channel_id):
     async for msg in bot.get_chat_history(channel_id):
@@ -124,15 +146,18 @@ async def update_from_channel(channel_id):
             title = extract_title(msg.text)
             if not title:
                 try:
-                    await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.message_id)
+                    await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.id)
                 except Exception as e:
                     print(f"[Alert Failed] Forwarding during update: {e}")
                 continue
             movie_db[title] = {
                 "channel_id": channel_id,
-                "message_id": msg.message_id
+                "message_id": msg.id
             }
-            await bot.copy_message(FORWARD_CHANNEL_ID, channel_id, msg.message_id)
+            try:
+                await bot.copy_message(FORWARD_CHANNEL_ID, channel_id, msg.id)
+            except:
+                pass
     save_db(movie_db)
 
 async def remove_deleted_posts():
