@@ -49,7 +49,6 @@ def extract_title(text):
             title = line.split(":", 1)[-1].strip(" 🎬-.")
             if len(title) >= 2:
                 return title.lower()
-    # fallback: pick first short line
     for line in lines:
         if len(line.strip()) <= 30 and len(line.strip()) >= 2:
             return line.strip().lower()
@@ -97,14 +96,20 @@ async def search_movie(client, message):
         await message.reply(
             "❌ **Movie Not Found**\n\nYour request has been received.\nIt'll be uploaded in 5–6 hours. Stay tuned!"
         )
-        await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie Not Found:\n🔍 `{query}`\nFrom: {message.from_user.mention}")
+        try:
+            await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie Not Found:\n🔍 `{query}`\nFrom: {message.from_user.mention}")
+        except Exception as e:
+            print(f"[Alert Failed] Movie not found alert: {e}")
 
 @bot.on_message(filters.channel)
 async def new_channel_post(client, message):
     if message.text:
         title = extract_title(message.text)
         if not title:
-            await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
+            try:
+                await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.message_id)
+            except Exception as e:
+                print(f"[Alert Failed] Forwarding unknown title: {e}")
             return
         movie_db[title] = {
             "channel_id": message.chat.id,
@@ -118,7 +123,10 @@ async def update_from_channel(channel_id):
         if msg.text:
             title = extract_title(msg.text)
             if not title:
-                await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.message_id)
+                try:
+                    await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.message_id)
+                except Exception as e:
+                    print(f"[Alert Failed] Forwarding during update: {e}")
                 continue
             movie_db[title] = {
                 "channel_id": channel_id,
@@ -140,15 +148,24 @@ async def remove_deleted_posts():
         save_db(movie_db)
 
 async def startup_tasks():
-    await bot.send_message(ALERT_CHANNEL_ID, "🔄 Starting up... scanning channels...")
+    try:
+        await bot.send_message(ALERT_CHANNEL_ID, "🔄 Starting up... scanning channels...")
+    except Exception as e:
+        print(f"[Alert Failed] Startup message: {e}")
     for uname in MOVIE_CHANNELS:
         try:
             chat = await bot.get_chat(uname)
             await update_from_channel(chat.id)
         except Exception as e:
-            await bot.send_message(ALERT_CHANNEL_ID, f"❌ Failed to read @{uname}: `{e}`")
+            try:
+                await bot.send_message(ALERT_CHANNEL_ID, f"❌ Failed to read @{uname}: `{e}`")
+            except:
+                print(f"[Alert Failed] Reading @{uname}: {e}")
     await remove_deleted_posts()
-    await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup complete!")
+    try:
+        await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup complete!")
+    except Exception as e:
+        print(f"[Alert Failed] Startup complete: {e}")
 
 # ========== FLASK RUNNER ==========
 def run_flask():
