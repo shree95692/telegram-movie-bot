@@ -198,11 +198,13 @@ def run_flask():
 
 # ========== MAIN ==========
 if __name__ == "__main__":
-    threading.Thread(target=run_flask).start()
+    def start_bot():
+        asyncio.run(run_bot())
 
-    async def main():
+    async def run_bot():
         await bot.start()
         await startup_tasks()
         await idle()
 
-    asyncio.get_event_loop().run_until_complete(main())
+    threading.Thread(target=run_flask).start()
+    threading.Thread(target=start_bot).start()
