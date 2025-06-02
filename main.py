@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 import threading
+import re
 from flask import Flask
 from pyrogram import Client, filters, idle
 from pyrogram.errors import MessageIdInvalid, ChannelPrivate
@@ -18,12 +19,10 @@ MOVIE_CHANNELS = {
 
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
-
 MOVIE_DB_FILE = "movie_db.json"
 
 # ========== FLASK SETUP ==========
 app = Flask(__name__)
-
 @app.route('/')
 def home():
     return "✅ Bot is alive!"
@@ -40,18 +39,26 @@ def save_db(data):
         json.dump(data, f, indent=2)
 
 def extract_title(text):
-    lines = text.splitlines()
-    for line in lines:
+    # Normalize text
+    text = text.replace("**", "").replace("__", "")
+    
+    # Priority 1: Look for known title keywords
+    patterns = [
+        r"[🎬🔊🆕🚀📥]?\s*(title|movie|film)?\s*[:\-]?\s*([A-Za-z0-9\s\.\-]{2,40})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            title = match.group(2).strip(" :-().").lower()
+            if title and 2 <= len(title) <= 40:
+                return title
+
+    # Priority 2: Try first 1-2 lines that are short
+    for line in text.splitlines():
         line = line.strip()
-        if not line:
-            continue
-        if any(key in line.lower() for key in ["title", "movie", "film"]):
-            title = line.split(":", 1)[-1].strip(" 🎬-.")
-            if len(title) >= 2:
-                return title.lower()
-    for line in lines:
-        if 2 <= len(line.strip()) <= 30:
-            return line.strip().lower()
+        if 2 <= len(line) <= 40 and any(c.isalpha() for c in line):
+            return line.lower()
+    
     return None
 
 # ========== BOT SETUP ==========
@@ -87,7 +94,7 @@ async def uploaded_movies(client, message):
     text = "**🎬 Uploaded Movies:**\n\n"
     for i, title in enumerate(movie_list, start=1):
         text += f"{i}. {title}\n"
-        if len(text) > 3800:  # Telegram message length limit
+        if len(text) > 3800:
             await message.reply(text)
             text = ""
     if text:
@@ -113,7 +120,7 @@ async def search_movie(client, message):
                 break
     if not found:
         await message.reply(
-            "❌ **Movie Not Found**\n\nYour request has been received.\nIt'll be uploaded in 5–6 hours. Stay tuned!"
+            "❌ **Movie Not Found**\n\n📩 Your request has been received.\nThe movie will be uploaded in 5–6 hours. Stay tuned!"
         )
         try:
             await bot.send_message(ALERT_CHANNEL_ID, f"❌ Movie Not Found:\n🔍 `{query}`\nFrom: {message.from_user.mention}")
