@@ -6,7 +6,7 @@ import re
 import subprocess
 from flask import Flask
 from pyrogram import Client, filters, idle
-from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageNotModified
+from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageNotModified, PeerIdInvalid
 
 # ========== CONFIGURATION ==========
 API_ID = 25424751
@@ -47,7 +47,6 @@ def backup_to_github():
     try:
         subprocess.run(["git", "config", "--global", "user.name", "moviebot"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
-        subprocess.run(["git", "pull"], check=True)
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
         subprocess.run(["git", "push"], check=True)
@@ -118,7 +117,7 @@ async def search_movie(client, message):
     for title, info in movie_db.items():
         if query in title:
             try:
-                await bot.get_messages(info["channel_id"], info["message_id"])  # check if message exists
+                await bot.get_messages(info["channel_id"], info["message_id"])
                 channel_link = next(
                     (link for uname, link in MOVIE_CHANNELS.items()
                      if await bot.get_chat(uname).id == info["channel_id"]),
@@ -138,6 +137,8 @@ async def search_movie(client, message):
                 "❌ **Movie Not Found**\n\n📩 Your request has been noted.\nThe movie will be uploaded in 5–6 hours."
             )
             await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{query}`\nFrom: {message.from_user.mention}")
+        except PeerIdInvalid:
+            print("❗ ALERT_CHANNEL_ID invalid ya bot ko access nahi hai.")
         except Exception as e:
             print(f"[Alert Failed] Not Found: {e}")
 
@@ -148,11 +149,13 @@ async def new_channel_post(client, message):
         if not title:
             try:
                 await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.id)
+            except PeerIdInvalid:
+                print("❗ ALERT_CHANNEL_ID invalid for forwarding.")
             except Exception as e:
                 print(f"[Alert Failed] Forward unknown title: {e}")
             return
         if title in movie_db:
-            return  # skip duplicate title
+            return
         movie_db[title] = {
             "channel_id": message.chat.id,
             "message_id": message.id
@@ -171,11 +174,13 @@ async def update_from_channel(channel_id):
             if not title:
                 try:
                     await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.id)
+                except PeerIdInvalid:
+                    print("❗ ALERT_CHANNEL_ID invalid during update.")
                 except Exception as e:
                     print(f"[Alert Failed] Forwarding update: {e}")
                 continue
             if title in movie_db:
-                continue  # skip duplicate
+                continue
             movie_db[title] = {
                 "channel_id": channel_id,
                 "message_id": msg.id
@@ -203,6 +208,8 @@ async def remove_deleted_posts():
 async def startup_tasks():
     try:
         await bot.send_message(ALERT_CHANNEL_ID, "🔄 Bot starting... scanning all channels.")
+    except PeerIdInvalid:
+        print("❗ ALERT_CHANNEL_ID invalid during startup.")
     except Exception as e:
         print(f"[Alert] Startup: {e}")
     for uname in MOVIE_CHANNELS:
@@ -217,8 +224,8 @@ async def startup_tasks():
     await remove_deleted_posts()
     try:
         await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup complete!")
-    except Exception as e:
-        print(f"[Alert] Startup complete: {e}")
+    except:
+        print("[Alert] Final success alert failed.")
 
 # ========== MAIN ==========
 if __name__ == "__main__":
