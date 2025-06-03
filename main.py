@@ -6,7 +6,7 @@ import re
 import subprocess
 from flask import Flask
 from pyrogram import Client, filters, idle
-from pyrogram.errors import MessageIdInvalid, ChannelPrivate
+from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageNotModified
 
 # ========== CONFIGURATION ==========
 API_ID = 25424751
@@ -47,6 +47,7 @@ def backup_to_github():
     try:
         subprocess.run(["git", "config", "--global", "user.name", "moviebot"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
+        subprocess.run(["git", "pull"], check=True)
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
         subprocess.run(["git", "push"], check=True)
@@ -117,6 +118,7 @@ async def search_movie(client, message):
     for title, info in movie_db.items():
         if query in title:
             try:
+                await bot.get_messages(info["channel_id"], info["message_id"])  # check if message exists
                 channel_link = next(
                     (link for uname, link in MOVIE_CHANNELS.items()
                      if await bot.get_chat(uname).id == info["channel_id"]),
@@ -126,16 +128,15 @@ async def search_movie(client, message):
                 await message.reply(f"✅ **Movie Found:**\n👉 {link}")
                 found = True
                 break
-            except Exception as e:
-                await message.reply("⚠️ Error creating movie link.")
-                print(f"[Error] Link: {e}")
+            except:
+                await message.reply("⚠️ Movie was found in DB but has been **deleted**.")
                 found = True
                 break
     if not found:
-        await message.reply(
-            "❌ **Movie Not Found**\n\n📩 Your request has been noted.\nThe movie will be uploaded in 5–6 hours."
-        )
         try:
+            await message.reply(
+                "❌ **Movie Not Found**\n\n📩 Your request has been noted.\nThe movie will be uploaded in 5–6 hours."
+            )
             await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{query}`\nFrom: {message.from_user.mention}")
         except Exception as e:
             print(f"[Alert Failed] Not Found: {e}")
@@ -150,6 +151,8 @@ async def new_channel_post(client, message):
             except Exception as e:
                 print(f"[Alert Failed] Forward unknown title: {e}")
             return
+        if title in movie_db:
+            return  # skip duplicate title
         movie_db[title] = {
             "channel_id": message.chat.id,
             "message_id": message.id
@@ -171,6 +174,8 @@ async def update_from_channel(channel_id):
                 except Exception as e:
                     print(f"[Alert Failed] Forwarding update: {e}")
                 continue
+            if title in movie_db:
+                continue  # skip duplicate
             movie_db[title] = {
                 "channel_id": channel_id,
                 "message_id": msg.id
