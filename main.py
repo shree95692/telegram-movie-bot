@@ -49,7 +49,7 @@ def backup_to_github():
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
-        subprocess.run(["git", "push"], check=True)
+        subprocess.run(['git', 'push', 'origin', 'HEAD:main'], check=True)
     except Exception as e:
         print(f"[GitHub Backup Failed] {e}")
 
