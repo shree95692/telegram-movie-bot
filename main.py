@@ -1,3 +1,4 @@
+# SAME IMPORTS
 import os
 import json
 import asyncio
@@ -8,7 +9,7 @@ from flask import Flask
 from pyrogram import Client, filters, idle
 from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageNotModified, PeerIdInvalid
 
-# ========== CONFIGURATION ==========
+# === CONFIG ===
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 SESSION_NAME = "my"
@@ -23,7 +24,7 @@ FORWARD_CHANNEL_ID = -1002512169097
 MOVIE_DB_FILE = "movie_db.json"
 GITHUB_REPO = "shree95692/movie-db-backup"
 
-# ========== FLASK SETUP ==========
+# === FLASK ===
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -32,7 +33,7 @@ def home():
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
-# ========== DATABASE ==========
+# === DB ===
 def load_db():
     if os.path.exists(MOVIE_DB_FILE):
         with open(MOVIE_DB_FILE, "r") as f:
@@ -49,30 +50,27 @@ def backup_to_github():
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
-        subprocess.run(['git', 'push', 'origin', 'HEAD:main'], check=True)
+        subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
     except Exception as e:
         print(f"[GitHub Backup Failed] {e}")
 
-# ========== TITLE EXTRACTION ==========
+# === TITLE EXTRACTION ===
 def extract_title(text):
     text = text.replace("**", "").replace("__", "")
-    patterns = [
-        r"[🎬🔊🆕🚀📥]?\s*(title|movie|film)?\s*[:\-]?\s*([A-Za-z0-9\s\-:().,']{2,50})"
-    ]
+    patterns = [r"[🎬🔊🆕🚀📥]?\s*(title|movie|film)?\s*[:\-]?\s*([A-Za-z0-9\s\-:().,']{2,50})"]
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             title = match.group(2).strip(" :-().,'").lower()
             if 2 <= len(title) <= 50:
                 return title
-
     for line in text.splitlines():
         line = line.strip()
         if 2 <= len(line) <= 50 and any(c.isalpha() for c in line):
             return line.lower()
     return None
 
-# ========== BOT SETUP ==========
+# === BOT SETUP ===
 bot = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 movie_db = load_db()
 
@@ -118,13 +116,17 @@ async def search_movie(client, message):
         if query in title:
             try:
                 await bot.get_messages(info["channel_id"], info["message_id"])
-                channel_link = next(
-                    (link for uname, link in MOVIE_CHANNELS.items()
-                     if await bot.get_chat(uname).id == info["channel_id"]),
-                    None
-                )
-                link = f"{channel_link}/{info['message_id']}" if channel_link else f"https://t.me/c/{str(info['channel_id'])[4:]}/{info['message_id']}"
-                await message.reply(f"✅ **Movie Found:**\n👉 {link}")
+                for uname, link in MOVIE_CHANNELS.items():
+                    try:
+                        if await bot.get_chat(uname).id == info["channel_id"]:
+                            t_link = f"{link}/{info['message_id']}"
+                            await message.reply(f"✅ **Movie Found:**\n👉 {t_link}")
+                            found = True
+                            return
+                    except:
+                        continue
+                fallback_link = f"https://t.me/c/{str(info['channel_id'])[4:]}/{info['message_id']}"
+                await message.reply(f"✅ **Movie Found:**\n👉 {fallback_link}")
                 found = True
                 break
             except:
@@ -132,15 +134,15 @@ async def search_movie(client, message):
                 found = True
                 break
     if not found:
+        await message.reply(
+            "❌ **Movie Not Found**\n\n📩 Your request has been noted.\nThe movie will be uploaded in 5–6 hours."
+        )
         try:
-            await message.reply(
-                "❌ **Movie Not Found**\n\n📩 Your request has been noted.\nThe movie will be uploaded in 5–6 hours."
-            )
             await bot.send_message(ALERT_CHANNEL_ID, f"❌ Not Found: `{query}`\nFrom: {message.from_user.mention}")
         except PeerIdInvalid:
-            print("❗ ALERT_CHANNEL_ID invalid ya bot ko access nahi hai.")
+            print("❗ ALERT_CHANNEL_ID invalid ya access nahi hai.")
         except Exception as e:
-            print(f"[Alert Failed] Not Found: {e}")
+            print(f"[Alert Failed] {e}")
 
 @bot.on_message(filters.channel)
 async def new_channel_post(client, message):
@@ -149,10 +151,8 @@ async def new_channel_post(client, message):
         if not title:
             try:
                 await bot.forward_messages(ALERT_CHANNEL_ID, message.chat.id, message.id)
-            except PeerIdInvalid:
-                print("❗ ALERT_CHANNEL_ID invalid for forwarding.")
-            except Exception as e:
-                print(f"[Alert Failed] Forward unknown title: {e}")
+            except:
+                print("⚠️ Failed to forward unknown title.")
             return
         if title in movie_db:
             return
@@ -174,10 +174,8 @@ async def update_from_channel(channel_id):
             if not title:
                 try:
                     await bot.forward_messages(ALERT_CHANNEL_ID, channel_id, msg.id)
-                except PeerIdInvalid:
-                    print("❗ ALERT_CHANNEL_ID invalid during update.")
-                except Exception as e:
-                    print(f"[Alert Failed] Forwarding update: {e}")
+                except:
+                    print("⚠️ Forward failed during update.")
                 continue
             if title in movie_db:
                 continue
@@ -208,32 +206,29 @@ async def remove_deleted_posts():
 async def startup_tasks():
     try:
         await bot.send_message(ALERT_CHANNEL_ID, "🔄 Bot starting... scanning all channels.")
-    except PeerIdInvalid:
-        print("❗ ALERT_CHANNEL_ID invalid during startup.")
-    except Exception as e:
-        print(f"[Alert] Startup: {e}")
+    except:
+        print("[Startup] ALERT_CHANNEL_ID unavailable.")
     for uname in MOVIE_CHANNELS:
         try:
             chat = await bot.get_chat(uname)
             await update_from_channel(chat.id)
         except Exception as e:
+            print(f"[Startup] Error loading @{uname}: {e}")
             try:
                 await bot.send_message(ALERT_CHANNEL_ID, f"❌ Failed: @{uname}\n`{e}`")
             except:
-                print(f"[Alert] Reading @{uname}: {e}")
+                pass
     await remove_deleted_posts()
     try:
         await bot.send_message(ALERT_CHANNEL_ID, "✅ Startup complete!")
     except:
-        print("[Alert] Final success alert failed.")
+        print("[Startup] Final alert failed.")
 
-# ========== MAIN ==========
+# === MAIN ===
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
-
     async def main():
         await bot.start()
         await startup_tasks()
         await idle()
-
     asyncio.run(main())
