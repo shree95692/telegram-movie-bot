@@ -55,18 +55,16 @@ def backup_to_github():
 
         subprocess.run(["git", "config", "--global", "user.name", "moviebot"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
-
-        # 👇 Ye line add karni zaruri thi
         subprocess.run(["git", "config", "--global", "pull.rebase", "false"], check=True)
 
         subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
 
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
 
-        # 👇 Allow unrelated histories + use merge strategy
-        subprocess.run([
-            "git", "pull", "origin", "main", "--allow-unrelated-histories"
-        ], check=True)
+        # ✅ Handle merge conflict properly
+        subprocess.run(["git", "stash"], check=True)
+        subprocess.run(["git", "pull", "origin", "main", "--allow-unrelated-histories"], check=True)
+        subprocess.run(["git", "stash", "pop"], check=True)
 
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
         subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
