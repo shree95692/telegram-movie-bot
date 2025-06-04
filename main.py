@@ -58,16 +58,14 @@ def backup_to_github():
         subprocess.run(["git", "config", "--global", "pull.rebase", "false"], check=True)
 
         subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
-
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
 
-        # ✅ Handle merge conflict properly
-        subprocess.run(["git", "stash"], check=True)
-        subprocess.run(["git", "pull", "origin", "main", "--allow-unrelated-histories"], check=True)
-        subprocess.run(["git", "stash", "pop"], check=True)
+        # 🔥 Resolve any conflict forcibly
+        subprocess.run(["git", "checkout", "--ours", MOVIE_DB_FILE], check=True)
+        subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
 
-        subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
-        subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
+        subprocess.run(["git", "commit", "-m", "🔄 Forced update movie DB"], check=True)
+        subprocess.run(["git", "push", "origin", "HEAD:main", "--force"], check=True)
 
     except Exception as e:
         print(f"[GitHub Backup Failed] {e}")
