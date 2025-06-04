@@ -60,8 +60,10 @@ def backup_to_github():
         # ✅ Ensure movie_db.json is tracked
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
 
-        # 🔄 Pull remote changes (merge strategy instead of rebase to avoid checkout issues)
-        subprocess.run(["git", "pull", "origin", "main", "--no-rebase"], check=True)
+        # ✅ Allow unrelated histories while pulling
+        subprocess.run([
+            "git", "pull", "origin", "main", "--allow-unrelated-histories"
+        ], check=True)
 
         # ✅ Commit and push
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
