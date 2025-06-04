@@ -57,12 +57,13 @@ def backup_to_github():
         subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
         subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
 
-        # 🟡 Stash local changes before pull
-        subprocess.run(["git", "stash"], check=True)
-        subprocess.run(["git", "pull", "origin", "main", "--rebase"], check=True)
-
-        # 🟢 Add and commit new DB file
+        # ✅ Ensure movie_db.json is tracked
         subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
+
+        # 🔄 Pull remote changes (merge strategy instead of rebase to avoid checkout issues)
+        subprocess.run(["git", "pull", "origin", "main", "--no-rebase"], check=True)
+
+        # ✅ Commit and push
         subprocess.run(["git", "commit", "-m", "🔄 Updated movie database"], check=True)
         subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
 
