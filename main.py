@@ -46,30 +46,24 @@ def save_db(data):
 
 def backup_to_github():
     try:
-        github_token = os.environ.get("GITHUB_TOKEN")
-        if not github_token:
-            print("[GitHub Backup Error] GITHUB_TOKEN not set.")
-            return
+        if not os.path.exists(".git"):
+            subprocess.run(["git", "init"], check=True)
+            subprocess.run(["git", "remote", "add", "origin", GITHUB_REPO_URL], check=True)
+        else:
+            subprocess.run(["rm", "-rf", ".git"], check=True)  # 🔥 Clean old Git history
+            subprocess.run(["git", "init"], check=True)
+            subprocess.run(["git", "remote", "add", "origin", GITHUB_REPO_URL], check=True)
 
-        repo_url = f"https://{github_token}@github.com/{GITHUB_REPO}.git"
-
-        subprocess.run(["git", "config", "--global", "user.name", "moviebot"], check=True)
-        subprocess.run(["git", "config", "--global", "user.email", "bot@example.com"], check=True)
-        subprocess.run(["git", "config", "--global", "pull.rebase", "false"], check=True)
-
-        subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
-        subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
-
-        # 🔥 Resolve any conflict forcibly
-        subprocess.run(["git", "checkout", "--ours", MOVIE_DB_FILE], check=True)
-        subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
-
+        subprocess.run(["git", "config", "user.email", "moviebot@github.com"], check=True)
+        subprocess.run(["git", "config", "user.name", "Movie Bot"], check=True)
+        subprocess.run(["git", "add", "movie_db.json"], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Forced update movie DB"], check=True)
-        subprocess.run(["git", "push", "origin", "HEAD:main", "--force"], check=True)
+        subprocess.run(["git", "branch", "-M", "main"], check=True)
+        subprocess.run(["git", "push", "-u", "origin", "main", "--force"], check=True)
 
+        print("[GitHub Backup Success] ✅ movie_db.json updated")
     except Exception as e:
         print(f"[GitHub Backup Failed] {e}")
-
 # === TITLE EXTRACTION ===
 def extract_title(text):
     text = text.replace("**", "").replace("__", "")
