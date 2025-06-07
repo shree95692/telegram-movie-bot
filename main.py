@@ -8,6 +8,10 @@ from flask import Flask
 from pyrogram import Client, filters, idle
 from pyrogram.enums import ChatType
 from pyrogram.errors import MessageIdInvalid, ChannelPrivate, MessageNotModified, PeerIdInvalid
+from dotenv import load_dotenv
+
+# === Load environment variables ===
+load_dotenv()
 
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
@@ -21,7 +25,7 @@ MOVIE_CHANNELS = {
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
 MOVIE_DB_FILE = "movie_db.json"
-GITHUB_REPO_URL = "GITHUB_REPO_URL = "https://ghp_abcd1234yourtokenhere5678@github.com/shree95692/movie-db-backup.git""
+GITHUB_REPO_URL = os.environ.get("GITHUB_REPO_URL")  # ✅ Token from env
 
 # === FLASK ===
 app = Flask(__name__)
@@ -45,12 +49,15 @@ def save_db(data):
 
 def backup_to_github():
     try:
+        if not GITHUB_REPO_URL:
+            print("❌ GITHUB_REPO_URL not set in environment.")
+            return
         subprocess.run(["rm", "-rf", ".git"], check=True)
         subprocess.run(["git", "init"], check=True)
         subprocess.run(["git", "remote", "add", "origin", GITHUB_REPO_URL], check=True)
         subprocess.run(["git", "config", "user.email", "moviebot@github.com"], check=True)
         subprocess.run(["git", "config", "user.name", "Movie Bot"], check=True)
-        subprocess.run(["git", "add", "movie_db.json"], check=True)
+        subprocess.run(["git", "add", MOVIE_DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", "🔄 Forced update movie DB"], check=True)
         subprocess.run(["git", "branch", "-M", "main"], check=True)
         subprocess.run(["git", "push", "-u", "origin", "main", "--force"], check=True)
