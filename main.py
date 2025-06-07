@@ -21,7 +21,7 @@ MOVIE_CHANNELS = {
 ALERT_CHANNEL_ID = -1002661392627
 FORWARD_CHANNEL_ID = -1002512169097
 MOVIE_DB_FILE = "movie_db.json"
-GITHUB_REPO_URL = "https://github.com/shree95692/movie-db-backup.git"
+GITHUB_REPO_URL = "GITHUB_REPO_URL = "https://ghp_abcd1234yourtokenhere5678@github.com/shree95692/movie-db-backup.git""
 
 # === FLASK ===
 app = Flask(__name__)
