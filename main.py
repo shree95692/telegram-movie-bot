@@ -78,7 +78,7 @@ def extract_title(text):
 bot = Client(name="moviebot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 movie_db = load_db()
 
-@bot.on_message(filters.private & filters.command("start"))
+@bot.on_message(filters.command("start") & filters.incoming)
 async def start_command(client, message):
     await message.reply(
         "👋 **Welcome to Movie Request Bot!**\n\n"
@@ -88,14 +88,14 @@ async def start_command(client, message):
         "📋 Use /uploaded_movies to see all uploaded movies."
     )
 
-@bot.on_message(filters.private & filters.command("upload_db"))
+@bot.on_message(filters.command("upload_db") & filters.incoming)
 async def upload_db(client, message):
     try:
         await message.reply_document(MOVIE_DB_FILE, caption="📁 Movie DB backup.")
     except:
         await message.reply("❌ Failed to upload movie DB file.")
 
-@bot.on_message(filters.private & filters.command("uploaded_movies"))
+@bot.on_message(filters.command("uploaded_movies") & filters.incoming)
 async def uploaded_movies(client, message):
     movie_list = list(movie_db.keys())
     if not movie_list:
@@ -111,7 +111,7 @@ async def uploaded_movies(client, message):
     if text:
         await message.reply(text)
 
-@bot.on_message(filters.private & filters.text)
+@bot.on_message(filters.text & filters.incoming)
 async def search_movie(client, message):
     query = message.text.lower()
     for title, info in movie_db.items():
