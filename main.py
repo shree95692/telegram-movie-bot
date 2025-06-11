@@ -37,8 +37,8 @@ else:
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def save_db():
-    with open(DB_FILE, "w") as f:
-        json.dump(movie_db, f)
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(movie_db, f, indent=4, ensure_ascii=False)
 
     if GITHUB_PAT:
         try:
