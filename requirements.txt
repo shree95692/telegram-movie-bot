@@ -1,8 +1,11 @@
 flask==2.2.5
 werkzeug==2.3.0
-pyrogram==2.0.106
 tgcrypto==1.2.5
 gitpython==3.1.40
 python-dotenv
 telethon
 python-dotenv
+pyrogram==2.0.106
+tgcrypto
+Flask
+requests
