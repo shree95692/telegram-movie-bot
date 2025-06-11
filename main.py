@@ -7,6 +7,7 @@ import json
 import os
 import requests
 import math
+import base64
 
 app = Flask(__name__)
 
@@ -41,8 +42,8 @@ def save_db():
 
     if GITHUB_PAT:
         try:
-            with open(DB_FILE, "r") as f:
-                content = f.read()
+            with open(DB_FILE, "rb") as f:
+                content = base64.b64encode(f.read()).decode()
             push_to_github(content)
         except Exception as e:
             print("GitHub push failed:", e)
@@ -58,7 +59,7 @@ def push_to_github(content):
 
     data = {
         "message": "Update movie_db.json",
-        "content": content.encode("utf-8").decode("utf-8").encode("base64").decode(),
+        "content": content,
         "branch": BRANCH
     }
 
@@ -144,7 +145,30 @@ async def list_movies(client, message: Message):
 
     await message.reply_text(text)
 
-@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies"]))
+@bot.on_message(filters.command("add_movie"))
+async def add_movie_cmd(client, message: Message):
+    if message.from_user.id != 5163916480:
+        await message.reply_text("❌ You are not authorized to use this command.")
+        return
+
+    try:
+        _, data = message.text.split(" ", 1)
+        title, link = data.split("|", 1)
+        title = title.strip().lower()
+        link = link.strip()
+        match = re.search(r"t\.me/(.+)/(\d+)", link)
+        if match:
+            channel = "@" + match.group(1)
+            msg_id = int(match.group(2))
+            movie_db[title] = (channel, msg_id)
+            save_db()
+            await message.reply_text(f"✅ Added manually: {title}")
+        else:
+            await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
+    except:
+        await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
+
+@bot.on_message((filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
 async def search_movie(client, message: Message):
     query = message.text.lower()
     valid_results = []
