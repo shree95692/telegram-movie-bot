@@ -187,10 +187,16 @@ async def search_movie(client, message: Message):
     if valid_results:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(valid_results))
     else:
-        await message.reply_text("❌ Koi movie nahi mili.")
-        await client.send_message(ALERT_CHANNEL,
-            text=f"❌ Movie not found: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
-        )
+        await message.reply_text(
+    "❌ Movie nahi mili bhai 😔\n"
+    "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
+    "📩 Request mil gayi hai!\n"
+    "⏳ 5-6 ghante me upload ho jayegi.\n"
+    "🍿 Tab tak popcorn leke chill maro!"
+)
+await client.send_message(ALERT_CHANNEL,
+    text=f"❌ Movie not found: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+)
 
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
