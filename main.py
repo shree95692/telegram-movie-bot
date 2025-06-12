@@ -28,6 +28,41 @@ BRANCH = "main"
 GITHUB_FILE_PATH = "movie_db.json"
 GITHUB_PAT = os.environ.get("GITHUB_PAT")
 
+def restore_db_from_github():
+    if not GITHUB_PAT:
+        print("No GitHub PAT found, skipping restore.")
+        return
+
+    try:
+        headers = {
+            "Authorization": f"token {GITHUB_PAT}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        url = f"https://api.github.com/repos/{REPO}/contents/{GITHUB_FILE_PATH}"
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content = response.json().get("content")
+            if content:
+                decoded = base64.b64decode(content)
+                with open(DB_FILE, "wb") as f:
+                    f.write(decoded)
+                print("✅ movie_db.json restored from GitHub.")
+        else:
+            print("Failed to fetch from GitHub:", response.text)
+    except Exception as e:
+        print("Restore failed:", e)
+
+# Replace this block:
+# if os.path.exists(DB_FILE):
+#     with open(DB_FILE, "r") as f:
+#         movie_db = json.load(f)
+# else:
+#     movie_db = {}
+
+# With this:
+if not os.path.exists(DB_FILE):
+    restore_db_from_github()
+
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
         movie_db = json.load(f)
