@@ -209,22 +209,22 @@ async def search_movie(client, message: Message):
     valid_results = []
 
     to_remove = []
-for title, (channel, msg_id) in list(movie_db.items()):
-    if query in title:
-        try:
-            msg = await client.get_messages(channel, msg_id)
-            if msg and (msg.text or msg.caption):
-                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-            else:
+    for title, (channel, msg_id) in list(movie_db.items()):
+        if query in title:
+            try:
+                msg = await client.get_messages(channel, msg_id)
+                if msg and (msg.text or msg.caption):
+                    valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+                else:
+                    to_remove.append(title)
+            except:
                 to_remove.append(title)
-        except:
-            to_remove.append(title)
 
-for title in to_remove:
-    movie_db.pop(title, None)
+    for title in to_remove:
+        movie_db.pop(title, None)
 
-if to_remove:
-    save_db()
+    if to_remove:
+        save_db()
 
     if valid_results:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(valid_results))
