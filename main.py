@@ -274,7 +274,7 @@ if __name__ == "__main__":
     import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    Thread(target=loop.run_until_complete, args=(bot.start(),)).start()
+    Thread(target=loop.run_until_complete, args=(bot.run(),)).start()
 
     while True:
         time.sleep(10)
