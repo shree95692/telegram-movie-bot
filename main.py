@@ -8,6 +8,7 @@ import os
 import requests
 import math
 import base64
+import time
 
 app = Flask(__name__)
 
@@ -270,8 +271,10 @@ if __name__ == "__main__":
     Thread(target=run_flask).start()
 
     print("🤖 Starting Telegram bot...")
-    Thread(target=lambda: bot.run()).start()
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    Thread(target=loop.run_until_complete, args=(bot.start(),)).start()
 
-    # Prevent Koyeb from sleeping by keeping main thread alive
     while True:
         time.sleep(10)
