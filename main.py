@@ -266,5 +266,12 @@ def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
+    print("🚀 Starting Flask server...")
     Thread(target=run_flask).start()
-    bot.run()
+
+    print("🤖 Starting Telegram bot...")
+    Thread(target=lambda: bot.run()).start()
+
+    # Prevent Koyeb from sleeping by keeping main thread alive
+    while True:
+        time.sleep(10)
