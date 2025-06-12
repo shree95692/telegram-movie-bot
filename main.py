@@ -267,14 +267,9 @@ def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
+    print("✅ movie_db.json restored from GitHub.")
     print("🚀 Starting Flask server...")
     Thread(target=run_flask).start()
 
     print("🤖 Starting Telegram bot...")
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    Thread(target=loop.run_until_complete, args=(bot.run(),)).start()
-
-    while True:
-        time.sleep(10)
+    bot.run()  # <-- This keeps the main thread alive
