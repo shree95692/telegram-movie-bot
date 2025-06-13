@@ -110,19 +110,21 @@ def extract_title(text):
     if not lines:
         return None
 
+    # Step 1: Match lines like Title: Some Movie
     for line in lines:
-        lower_line = line.lower()
-        if any(k in lower_line for k in ["title", "movie", "name", "film"]):
-            parts = re.split(r"[:\-–]", line, maxsplit=1)
-            if len(parts) > 1 and len(parts[1].strip()) >= 2:
-                return parts[1].strip().lower()
+        match = re.search(r"(title|movie|film|name)[:\-–]\s*(.+)", line, re.IGNORECASE)
+        if match:
+            return match.group(2).strip().lower()
 
-    if 1 <= len(lines[0].split()) <= 8:
-        return lines[0].lower()
-
+    # Step 2: UPPERCASE short lines
     for line in lines:
-        if 1 <= len(line.split()) <= 6:
-            return line.lower()
+        if line.isupper() and 1 <= len(line.split()) <= 6:
+            return line.strip().lower()
+
+    # Step 3: Short non-misleading lines
+    for line in lines:
+        if 1 <= len(line.split()) <= 6 and not line.lower().startswith(("download", "size", "link", "resolution")):
+            return line.strip().lower()
 
     return None
 
