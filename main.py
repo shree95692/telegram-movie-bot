@@ -208,20 +208,36 @@ async def add_movie_cmd(client, message: Message):
 
 @bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
 async def search_movie(client, message: Message):
-    query = message.text.lower()
-    valid_results = []
+    query = message.text.lower().strip()
 
-    to_remove = []
-    for title, (channel, msg_id) in list(movie_db.items()):
+    # Step 1: Handle greetings like "hi", "ok", etc.
+    greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
+    if query in greetings:
+        await message.reply_text("Hello 👋")
+        return
+
+    # Step 2: Search top 5 matching movies
+    matches = []
+    for title, (channel, msg_id) in movie_db.items():
         if query in title:
-            try:
-                msg = await client.get_messages(channel, msg_id)
-                if msg and (msg.text or msg.caption):
-                    valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
-                else:
-                    to_remove.append(title)
-            except:
+            match_score = title.count(query)
+            matches.append((match_score, title, channel, msg_id))
+
+    # Sort by best match
+    matches.sort(key=lambda x: (-x[0], x[1]))
+
+    valid_results = []
+    to_remove = []
+
+    for _, title, channel, msg_id in matches[:5]:  # Max 5 links
+        try:
+            msg = await client.get_messages(channel, msg_id)
+            if msg and (msg.text or msg.caption):
+                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+            else:
                 to_remove.append(title)
+        except:
+            to_remove.append(title)
 
     for title in to_remove:
         movie_db.pop(title, None)
