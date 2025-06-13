@@ -250,8 +250,7 @@ async def new_post(client, message: Message):
 
     if chat_username in CHANNELS:
         title = extract_title(text)
-        
-    if title and len(title.strip()) >= 2:
+        if title and len(title.strip()) >= 2:
             movie_db[title] = (chat_username, message.id)
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
