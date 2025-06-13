@@ -261,7 +261,11 @@ async def new_post(client, message: Message):
                     text=f"❗ Forward failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
                 )
         else:
-            await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
+    await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
+    await client.send_message(
+        ALERT_CHANNEL,
+        f"⚠️ Title detect nahi hua for post: https://t.me/{message.chat.username}/{message.id}"
+    )
     else:
         print("⚠️ Unknown channel.")
 
