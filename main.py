@@ -214,6 +214,7 @@ async def search_movie(client, message: Message):
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
     if query in greetings:
         await message.reply_text("Hello 👋")
+        return  # <-- THIS LINE STOPS further execution
         return
 
     # Step 2: Search top 5 matching movies
