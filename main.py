@@ -251,15 +251,30 @@ async def new_post(client, message: Message):
     if chat_username in CHANNELS:
         title = extract_title(text)
         if title and len(title.strip()) >= 2:
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-            try:
-                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-            except Exception as e:
-                await client.send_message(ALERT_CHANNEL,
-                    text=f"❗ Message send failed:\nhttps://t.me/{message.chat.username}/{message.id}\nError: {e}"
-                )
+    old_entry = movie_db.get(title)
+    new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
+
+    if old_entry:
+        old_link = f"https://t.me/{old_entry[0].strip('@')}/{old_entry[1]}"
+        try:
+            await client.send_message(
+                ALERT_CHANNEL,
+                f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
+                f"🔁 Previous: {old_link}\n"
+                f"🆕 New: {new_link}"
+            )
+        except Exception as e:
+            print("⚠️ Duplicate alert send failed:", e)
+
+    movie_db[title] = (chat_username, message.id)
+    save_db()
+    print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+    try:
+        await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+    except Exception as e:
+        await client.send_message(ALERT_CHANNEL,
+            text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+        )
         else:
             await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
             await client.send_message(
