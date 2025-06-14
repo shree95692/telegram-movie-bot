@@ -219,7 +219,12 @@ async def search_movie(client, message: Message):
 
     # Step 2: Search top 5 matching movies
     matches = []
-    for title, (channel, msg_id) in movie_db.items():
+    for title, data in movie_db.items():
+    if isinstance(data, (list, tuple)) and len(data) == 2:
+        channel, msg_id = data
+    else:
+        print(f"⚠️ Skipping bad DB entry: {title} => {data}")
+        continue
         if query in title:
             match_score = title.count(query)
             matches.append((match_score, title, channel, msg_id))
