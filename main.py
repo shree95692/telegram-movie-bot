@@ -277,13 +277,13 @@ async def new_post(client, message: Message):
                     old_entries = [old_entries]  # convert old format to list
 
                 links = []
-                old_channel, old_msg_id = old_entries
-                    try:
-                        msg = await client.get_messages(old_channel, old_msg_id)
-                        if msg:
-                            links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
-                    except:
-                        continue  # skip deleted posts
+                try:
+                    old_channel, old_msg_id = old_entries
+                    msg = await client.get_messages(old_channel, old_msg_id)
+                    if msg:
+                        links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
+                except:
+                    pass  # skip deleted or inaccessible messages
 
                 exact_repeat = any(
                     old_channel == chat_username and old_msg_id == message.id
