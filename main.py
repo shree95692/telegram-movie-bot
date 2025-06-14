@@ -272,54 +272,51 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if title in movie_db:
-                old_entries = movie_db[title]
-                if not isinstance(old_entries, list):
-                    old_entries = [old_entries]  # convert old format to list
+    old_entries = movie_db[title]
+    if not isinstance(old_entries, list):
+        old_entries = [old_entries]  # convert old format to list
 
-                links = []
-                try:
-                    old_channel, old_msg_id = old_entries
-                    msg = await client.get_messages(old_channel, old_msg_id)
-                    if msg:
-                        links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
-                except:
-                    pass  # skip deleted or inaccessible messages
+    links = []
+    for old_channel, old_msg_id in old_entries:
+        try:
+            msg = await client.get_messages(old_channel, old_msg_id)
+            if msg:
+                links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
+        except:
+            pass
 
-                exact_repeat = any(
-                    old_channel == chat_username and old_msg_id == message.id
-                    for old_channel, old_msg_id in old_entries
-                )
+    exact_repeat = any(
+        old_channel == chat_username and old_msg_id == message.id
+        for old_channel, old_msg_id in old_entries
+    )
 
-                note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
-                if links:
-                    note += "🔁 Previous:\n" + "\n".join(links) + "\n"
-                note += f"🆕 New: {new_link}"
+    note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
+    if links:
+        note += "🔁 Previous:\n" + "\n".join(links) + "\n"
+    note += f"🆕 New: {new_link}"
 
-                if exact_repeat:
-                    note += "\n‼️ **(Exact Same Post Repeated)**"
+    if exact_repeat:
+        note += "\n‼️ **(Exact Same Post Repeated)**"
 
-                try:
-                    await client.send_message(ALERT_CHANNEL, note)
-                except Exception as e:
-                    print("⚠️ Duplicate alert send failed:", e)
+    try:
+        await client.send_message(ALERT_CHANNEL, note)
+    except Exception as e:
+        print("⚠️ Duplicate alert send failed:", e)
 
-                if not exact_repeat:
-                    old_entries.append((chat_username, message.id))
-                    movie_db[title] = old_entries
-                    save_db()
-            else:
-                movie_db[title] = [(chat_username, message.id)]
-                save_db()
-
-            movie_db[title] = (chat_username, message.id)
-            save_db()
-            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-            try:
-                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-            except Exception as e:
-                await client.send_message(ALERT_CHANNEL,
-                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-                )
+    if not exact_repeat:
+        old_entries.append((chat_username, message.id))
+        movie_db[title] = old_entries
+        save_db()
+else:
+    movie_db[title] = [(chat_username, message.id)]
+    save_db()
+    print(f"✅ Saved new movie: {title} -> {chat_username}/{message.id}")
+    try:
+        await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+    except Exception as e:
+        await client.send_message(ALERT_CHANNEL,
+            text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+        )
         else:
             await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
             await client.send_message(
