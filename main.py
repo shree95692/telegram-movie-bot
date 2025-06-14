@@ -277,7 +277,7 @@ async def new_post(client, message: Message):
                     old_entries = [old_entries]  # convert old format to list
 
                 links = []
-                for old_channel, old_msg_id in old_entries:
+                old_channel, old_msg_id = old_entries
                     try:
                         msg = await client.get_messages(old_channel, old_msg_id)
                         if msg:
