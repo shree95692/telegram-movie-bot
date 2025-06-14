@@ -272,16 +272,20 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                old_link = f"https://t.me/{old_entry[0].strip('@')}/{old_entry[1]}"
-                try:
-                    await client.send_message(
-                        ALERT_CHANNEL,
-                        f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
-                        f"🔁 Previous: {old_link}\n"
-                        f"🆕 New: {new_link}"
-                    )
-                except Exception as e:
-                    print("⚠️ Duplicate alert send failed:", e)
+    old_channel, old_msg_id = old_entry
+    old_link = f"https://t.me/{old_channel.strip('@')}/{old_msg_id}"
+    note = "⚠️ Duplicate movie detected"
+    if old_channel == chat_username and old_msg_id == message.id:
+        note += " (Exact Same Post Repeated)"
+    try:
+        await client.send_message(
+            ALERT_CHANNEL,
+            f"{note}: **{title.title()}**\n\n"
+            f"🔁 Previous: {old_link}\n"
+            f"🆕 New: {new_link}"
+        )
+    except Exception as e:
+        print("⚠️ Duplicate alert send failed:", e)
 
             movie_db[title] = (chat_username, message.id)
             save_db()
