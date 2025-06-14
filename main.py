@@ -271,20 +271,45 @@ async def new_post(client, message: Message):
             old_entry = movie_db.get(title)
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
-            if old_entry:
-                old_channel, old_msg_id = old_entry
-                old_link = f"https://t.me/{old_channel.strip('@')}/{old_msg_id}"
+            if title in movie_db:
+                old_entries = movie_db[title]
+                if not isinstance(old_entries, list):
+                    old_entries = [old_entries]  # convert old format to list
+
+                links = []
+                for old_channel, old_msg_id in old_entries:
+                    try:
+                        msg = await client.get_messages(old_channel, old_msg_id)
+                        if msg:
+                            links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
+                    except:
+                        continue  # skip deleted posts
+
+                exact_repeat = any(
+                    old_channel == chat_username and old_msg_id == message.id
+                    for old_channel, old_msg_id in old_entries
+                )
+
+                note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
+                if links:
+                    note += "🔁 Previous:\n" + "\n".join(links) + "\n"
+                note += f"🆕 New: {new_link}"
+
+                if exact_repeat:
+                    note += "\n‼️ **(Exact Same Post Repeated)**"
 
                 try:
-                    note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
-                    note += f"🔁 Previous: {old_link}\n🆕 New: {new_link}"
-
-                    if old_channel == chat_username and old_msg_id == message.id:
-                        note += "\n‼️ **(Exact Same Post Repeated)**"
-
                     await client.send_message(ALERT_CHANNEL, note)
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
+
+                if not exact_repeat:
+                    old_entries.append((chat_username, message.id))
+                    movie_db[title] = old_entries
+                    save_db()
+            else:
+                movie_db[title] = [(chat_username, message.id)]
+                save_db()
 
             movie_db[title] = (chat_username, message.id)
             save_db()
