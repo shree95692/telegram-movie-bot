@@ -272,7 +272,7 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if title in movie_db:
-    old_entries = movie_db[title]
+                 old_entries = movie_db[title]
     if not isinstance(old_entries, list):
         old_entries = [old_entries]  # convert old format to list
 
