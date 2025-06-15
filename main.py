@@ -278,7 +278,6 @@ async def new_post(client, message: Message):
 
             if old_entry:
     old_entries = old_entry if isinstance(old_entry, list) else [old_entry]
-
     links = []
     for old_channel, old_msg_id in old_entries:
         try:
