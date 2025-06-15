@@ -204,7 +204,10 @@ async def search_movie(client, message: Message):
         return
 
     matches = []
-    for title, (channel, msg_id) in movie_db.items():
+    for title, data in movie_db.items():
+        if not (isinstance(data, (list, tuple)) and len(data) == 2):
+            continue  # skip invalid data
+        channel, msg_id = data
         if query in title:
             match_score = title.count(query)
             matches.append((match_score, title, channel, msg_id))
@@ -240,7 +243,8 @@ async def search_movie(client, message: Message):
             "⏳ 5-6 ghante me upload ho jayegi.\n"
             "🍿 Tab tak popcorn leke chill maro!"
         )
-        await client.send_message(ALERT_CHANNEL,
+        await client.send_message(
+            ALERT_CHANNEL,
             text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
 
