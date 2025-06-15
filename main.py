@@ -31,9 +31,8 @@ GITHUB_PAT = os.environ.get("GITHUB_PAT")
 
 def restore_db_from_github():
     if not GITHUB_PAT:
-        print("No GitHub PAT found, skipping restore.")
+        print("⚠️ No GitHub PAT found, skipping restore.")
         return
-
     try:
         headers = {
             "Authorization": f"token {GITHUB_PAT}",
@@ -49,21 +48,10 @@ def restore_db_from_github():
                     f.write(decoded)
                 print("✅ movie_db.json restored from GitHub.")
         else:
-            print("Failed to fetch from GitHub:", response.text)
+            print("❌ Failed to fetch from GitHub:", response.text)
     except Exception as e:
-        print("Restore failed:", e)
+        print("❌ Restore failed:", e)
 
-# Replace this block:
-if not os.path.exists(DB_FILE):
-    restore_db_from_github()
-
-if os.path.exists(DB_FILE):
-    with open(DB_FILE, "r") as f:
-        movie_db = json.load(f)
-else:
-    movie_db = {}
-
-# With this:
 if not os.path.exists(DB_FILE):
     restore_db_from_github()
 
@@ -85,7 +73,9 @@ def save_db():
                 content = base64.b64encode(f.read()).decode()
             push_to_github(content)
         except Exception as e:
-            print("GitHub push failed:", e)
+            print("❌ GitHub push failed:", e)
+    else:
+        print("⚠️ No GITHUB_PAT available; skipping GitHub push.")
 
 def push_to_github(content):
     headers = {
@@ -106,29 +96,22 @@ def push_to_github(content):
         data["sha"] = sha
 
     response = requests.put(url, headers=headers, json=data)
-    print("GitHub push status:", response.status_code)
+    print("📤 GitHub push status:", response.status_code)
 
 def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
-
-    # Step 1: Match lines like Title: Some Movie
     for line in lines:
         match = re.search(r"(title|movie|film|name)[:\-–]\s*(.+)", line, re.IGNORECASE)
         if match:
             return match.group(2).strip().lower()
-
-    # Step 2: UPPERCASE short lines
     for line in lines:
         if line.isupper() and 1 <= len(line.split()) <= 6:
             return line.strip().lower()
-
-    # Step 3: Short non-misleading lines
     for line in lines:
         if 1 <= len(line.split()) <= 6 and not line.lower().startswith(("download", "size", "link", "resolution")):
             return line.strip().lower()
-
     return None
 
 @bot.on_message(filters.command("start"))
@@ -146,17 +129,14 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
-
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
         errors.append(f"❌ Forward error:\n{e}")
-
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
     except Exception as e:
         errors.append(f"❌ Alert error:\n{e}")
-
     await message.reply_text("\n\n".join(errors) if errors else "✅ Both channels initialized.")
 
 @bot.on_message(filters.command("list_movies"))
@@ -170,8 +150,7 @@ async def list_movies(client, message: Message):
         pass
 
     movies = sorted(movie_db.keys())
-    total_pages = math.ceil(len(movies) / 20)
-
+    total_pages = max(1, math.ceil(len(movies) / 20))
     if page < 1 or page > total_pages:
         await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
         return
@@ -180,10 +159,8 @@ async def list_movies(client, message: Message):
     end = start + 20
     page_movies = movies[start:end]
     text = f"📽️ **Movies (Page {page}/{total_pages})**\n\n"
-
     for i, title in enumerate(page_movies, start=start + 1):
         text += f"{i}. {title.title()}\n"
-
     await message.reply_text(text)
 
 @bot.on_message(filters.command("add_movie"))
@@ -191,7 +168,6 @@ async def add_movie_cmd(client, message: Message):
     if message.from_user.id != 5163916480:
         await message.reply_text("❌ You are not authorized to use this command.")
         return
-
     try:
         _, data = message.text.split(" ", 1)
         title, link = data.split("|", 1)
@@ -201,7 +177,7 @@ async def add_movie_cmd(client, message: Message):
         if match:
             channel = "@" + match.group(1)
             msg_id = int(match.group(2))
-            movie_db[title] = (channel, msg_id)
+            movie_db[title] = [(channel, msg_id)]
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
@@ -212,33 +188,23 @@ async def add_movie_cmd(client, message: Message):
 @bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
 async def search_movie(client, message: Message):
     query = message.text.lower().strip()
-
-    # Step 1: Handle greetings like "hi", "ok", etc.
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
     if query in greetings:
         await message.reply_text("Hello 👋")
-        return  # <-- THIS LINE STOPS further execution
         return
 
-    # Step 2: Search top 5 matching movies
-    matches = []  
+    matches = []
     for title, data in movie_db.items():
-        if isinstance(data, (list, tuple)) and len(data) == 2:
-            channel, msg_id = data
-        else:  
-            print(f"⚠️ Skipping bad DB entry: {title} => {data}")  
-            continue
-        if query in title:
-            match_score = title.count(query)
-            matches.append((match_score, title, channel, msg_id))
-
-    # Sort by best match
-    matches.sort(key=lambda x: (-x[0], x[1]))
+        if isinstance(data, (list, tuple)) and len(data) > 0:
+            for channel, msg_id in data:
+                if query in title.lower():
+                    matches.append((title, channel, msg_id))
+        else:
+            print(f"⚠️ Skipping bad DB entry: {title} => {data}")
 
     valid_results = []
     to_remove = []
-
-    for _, title, channel, msg_id in matches[:5]:  # Max 5 links
+    for title, channel, msg_id in matches[:5]:
         try:
             msg = await client.get_messages(channel, msg_id)
             if msg and (msg.text or msg.caption):
@@ -268,8 +234,6 @@ async def search_movie(client, message: Message):
             text=f"❌ Movie not found: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
 
-# ... (ALL CODE ABOVE REMAINS UNCHANGED)
-
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
@@ -283,7 +247,6 @@ async def new_post(client, message: Message):
 
             if old_entry:
                 old_entries = old_entry if isinstance(old_entry, list) else [old_entry]
-
                 links = []
                 for old_channel, old_msg_id in old_entries:
                     try:
@@ -301,7 +264,7 @@ async def new_post(client, message: Message):
                 note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
                 if links:
                     note += "🔁 Previous:\n" + "\n".join(links) + "\n"
-                note += f"🆕 New: https://t.me/{chat_username.strip('@')}/{message.id}"
+                note += f"🆕 New: {new_link}"
 
                 if exact_repeat:
                     note += "\n‼️ **(Exact Same Post Repeated)**"
@@ -323,7 +286,7 @@ async def new_post(client, message: Message):
                     await client.forward_messages(FORWARD_CHANNEL, message.chat.id, [message.id])
                 except Exception as e:
                     await client.send_message(ALERT_CHANNEL,
-                        text=f"❗ Message send failed:\nhttps://t.me/{chat_username.strip('@')}/{message.id}\nError: {e}"
+                        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
                     )
         else:
             await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
@@ -334,8 +297,6 @@ async def new_post(client, message: Message):
     else:
         print("⚠️ Unknown channel.")
 
-# ... (Flask & main thread section remains unchanged)
-
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
@@ -343,6 +304,5 @@ if __name__ == "__main__":
     print("✅ movie_db.json restored from GitHub.")
     print("🚀 Starting Flask server...")
     Thread(target=run_flask).start()
-
     print("🤖 Starting Telegram bot...")
-    bot.run()  # <-- This keeps the main thread alive
+    bot.run()
