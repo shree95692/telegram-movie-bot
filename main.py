@@ -277,13 +277,7 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-    # Ensure old_entries is always a list of tuples
-    if isinstance(old_entry, list):
-        old_entries = old_entry
-    elif isinstance(old_entry, tuple):
-        old_entries = [old_entry]
-    else:
-        old_entries = []
+    old_entries = old_entry if isinstance(old_entry, list) else [old_entry]
 
     links = []
     for old_channel, old_msg_id in old_entries:
