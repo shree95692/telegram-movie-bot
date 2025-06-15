@@ -54,11 +54,14 @@ def restore_db_from_github():
         print("Restore failed:", e)
 
 # Replace this block:
-# if os.path.exists(DB_FILE):
-#     with open(DB_FILE, "r") as f:
-#         movie_db = json.load(f)
-# else:
-#     movie_db = {}
+if not os.path.exists(DB_FILE):
+    restore_db_from_github()
+
+if os.path.exists(DB_FILE):
+    with open(DB_FILE, "r") as f:
+        movie_db = json.load(f)
+else:
+    movie_db = {}
 
 # With this:
 if not os.path.exists(DB_FILE):
