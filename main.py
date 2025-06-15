@@ -31,7 +31,7 @@ GITHUB_PAT = os.environ.get("GITHUB_PAT")
 
 def restore_db_from_github():
     if not GITHUB_PAT:
-        print("⚠️ No GitHub PAT found, skipping restore.")
+        print("No GitHub PAT found, skipping restore.")
         return
     try:
         headers = {
@@ -48,9 +48,9 @@ def restore_db_from_github():
                     f.write(decoded)
                 print("✅ movie_db.json restored from GitHub.")
         else:
-            print("❌ Failed to fetch from GitHub:", response.text)
+            print("Failed to fetch from GitHub:", response.text)
     except Exception as e:
-        print("❌ Restore failed:", e)
+        print("Restore failed:", e)
 
 if not os.path.exists(DB_FILE):
     restore_db_from_github()
@@ -73,9 +73,7 @@ def save_db():
                 content = base64.b64encode(f.read()).decode()
             push_to_github(content)
         except Exception as e:
-            print("❌ GitHub push failed:", e)
-    else:
-        print("⚠️ No GITHUB_PAT available; skipping GitHub push.")
+            print("GitHub push failed:", e)
 
 def push_to_github(content):
     headers = {
@@ -102,16 +100,20 @@ def extract_title(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
+
     for line in lines:
         match = re.search(r"(title|movie|film|name)[:\-–]\s*(.+)", line, re.IGNORECASE)
         if match:
             return match.group(2).strip().lower()
+
     for line in lines:
         if line.isupper() and 1 <= len(line.split()) <= 6:
             return line.strip().lower()
+
     for line in lines:
         if 1 <= len(line.split()) <= 6 and not line.lower().startswith(("download", "size", "link", "resolution")):
             return line.strip().lower()
+
     return None
 
 @bot.on_message(filters.command("start"))
@@ -129,14 +131,17 @@ async def register_alert(client, message: Message):
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
     errors = []
+
     try:
         await client.send_message(FORWARD_CHANNEL, "✅ Forward channel connected.")
     except Exception as e:
         errors.append(f"❌ Forward error:\n{e}")
+
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel connected.")
     except Exception as e:
         errors.append(f"❌ Alert error:\n{e}")
+
     await message.reply_text("\n\n".join(errors) if errors else "✅ Both channels initialized.")
 
 @bot.on_message(filters.command("list_movies"))
@@ -150,7 +155,8 @@ async def list_movies(client, message: Message):
         pass
 
     movies = sorted(movie_db.keys())
-    total_pages = max(1, math.ceil(len(movies) / 20))
+    total_pages = math.ceil(len(movies) / 20)
+
     if page < 1 or page > total_pages:
         await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
         return
@@ -158,9 +164,11 @@ async def list_movies(client, message: Message):
     start = (page - 1) * 20
     end = start + 20
     page_movies = movies[start:end]
-    text = f"📽️ **Movies (Page {page}/{total_pages})**\n\n"
+    text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
+
     for i, title in enumerate(page_movies, start=start + 1):
         text += f"{i}. {title.title()}\n"
+
     await message.reply_text(text)
 
 @bot.on_message(filters.command("add_movie"))
@@ -168,6 +176,7 @@ async def add_movie_cmd(client, message: Message):
     if message.from_user.id != 5163916480:
         await message.reply_text("❌ You are not authorized to use this command.")
         return
+
     try:
         _, data = message.text.split(" ", 1)
         title, link = data.split("|", 1)
@@ -177,7 +186,7 @@ async def add_movie_cmd(client, message: Message):
         if match:
             channel = "@" + match.group(1)
             msg_id = int(match.group(2))
-            movie_db[title] = [(channel, msg_id)]
+            movie_db[title] = (channel, msg_id)
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
@@ -188,23 +197,24 @@ async def add_movie_cmd(client, message: Message):
 @bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
 async def search_movie(client, message: Message):
     query = message.text.lower().strip()
+
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
     if query in greetings:
         await message.reply_text("Hello 👋")
         return
 
     matches = []
-    for title, data in movie_db.items():
-        if isinstance(data, (list, tuple)) and len(data) > 0:
-            for channel, msg_id in data:
-                if query in title.lower():
-                    matches.append((title, channel, msg_id))
-        else:
-            print(f"⚠️ Skipping bad DB entry: {title} => {data}")
+    for title, (channel, msg_id) in movie_db.items():
+        if query in title:
+            match_score = title.count(query)
+            matches.append((match_score, title, channel, msg_id))
+
+    matches.sort(key=lambda x: (-x[0], x[1]))
 
     valid_results = []
     to_remove = []
-    for title, channel, msg_id in matches[:5]:
+
+    for _, title, channel, msg_id in matches[:5]:
         try:
             msg = await client.get_messages(channel, msg_id)
             if msg and (msg.text or msg.caption):
@@ -231,7 +241,7 @@ async def search_movie(client, message: Message):
             "🍿 Tab tak popcorn leke chill maro!"
         )
         await client.send_message(ALERT_CHANNEL,
-            text=f"❌ Movie not found: **{query}**\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+            text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
 
 @bot.on_message(filters.channel)
@@ -246,48 +256,26 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                old_entries = old_entry if isinstance(old_entry, list) else [old_entry]
-                links = []
-                for old_channel, old_msg_id in old_entries:
-                    try:
-                        msg = await client.get_messages(old_channel, old_msg_id)
-                        if msg:
-                            links.append(f"https://t.me/{old_channel.strip('@')}/{old_msg_id}")
-                    except:
-                        pass
-
-                exact_repeat = any(
-                    old_channel == chat_username and old_msg_id == message.id
-                    for old_channel, old_msg_id in old_entries
-                )
-
-                note = f"⚠️ Duplicate movie detected: **{title.title()}**\n\n"
-                if links:
-                    note += "🔁 Previous:\n" + "\n".join(links) + "\n"
-                note += f"🆕 New: {new_link}"
-
-                if exact_repeat:
-                    note += "\n‼️ **(Exact Same Post Repeated)**"
-
+                old_link = f"https://t.me/{old_entry[0].strip('@')}/{old_entry[1]}"
                 try:
-                    await client.send_message(ALERT_CHANNEL, note)
+                    await client.send_message(
+                        ALERT_CHANNEL,
+                        f"⚠️ Duplicate movie detected: {title.title()}\n\n"
+                        f"🔁 Previous: {old_link}\n"
+                        f"🆕 New: {new_link}"
+                    )
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-                if not exact_repeat:
-                    old_entries.append((chat_username, message.id))
-                    movie_db[title] = old_entries
-                    save_db()
-            else:
-                movie_db[title] = [(chat_username, message.id)]
-                save_db()
-                print(f"✅ Saved new movie: {title} -> {chat_username}/{message.id}")
-                try:
-                    await client.forward_messages(FORWARD_CHANNEL, message.chat.id, [message.id])
-                except Exception as e:
-                    await client.send_message(ALERT_CHANNEL,
-                        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-                    )
+            movie_db[title] = (chat_username, message.id)
+            save_db()
+            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+            try:
+                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+            except Exception as e:
+                await client.send_message(ALERT_CHANNEL,
+                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+                )
         else:
             await client.forward_messages(ALERT_CHANNEL, message.chat.id, [message.id])
             await client.send_message(
