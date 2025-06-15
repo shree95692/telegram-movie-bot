@@ -97,22 +97,22 @@ def push_to_github(content):
     print("📤 GitHub push status:", response.status_code)
 
 def extract_title(text):
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if not lines:
-        return None
+def extract_title(text):
+    match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
+    if match:
+        raw_title = match.group(1).strip()
 
-    for line in lines:
-        match = re.search(r"(title|movie|film|name)[:\-–]\s*(.+)", line, re.IGNORECASE)
-        if match:
-            return match.group(2).strip().lower()
+        # Stop at first unwanted keyword
+        stop_words = ['480p', '720p', '1080p', 'HDRip', 'WEBRip', 'Download', 'Watch', 'Online', 'S01', 'S02', 'Complete']
+        for stop in stop_words:
+            if stop.lower() in raw_title.lower():
+                raw_title = raw_title[:raw_title.lower().find(stop.lower())].strip()
 
-    for line in lines:
-        if line.isupper() and 1 <= len(line.split()) <= 6:
-            return line.strip().lower()
+        # Remove unwanted characters
+        cleaned_title = re.sub(r'[^\w\s:\-()\'\"]+', '', raw_title)
+        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
 
-    for line in lines:
-        if 1 <= len(line.split()) <= 6 and not line.lower().startswith(("download", "size", "link", "resolution")):
-            return line.strip().lower()
+        return cleaned_title.lower() if cleaned_title else None
 
     return None
 
