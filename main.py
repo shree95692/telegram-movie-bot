@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+lfrom pyrogram import Client, filters
 from pyrogram.types import Message
 from flask import Flask
 from threading import Thread
@@ -278,6 +278,7 @@ async def new_post(client, message: Message):
 
             if old_entry:
     old_entries = old_entry if isinstance(old_entry, list) else [old_entry]
+
     links = []
     for old_channel, old_msg_id in old_entries:
         try:
@@ -309,7 +310,6 @@ async def new_post(client, message: Message):
         old_entries.append((chat_username, message.id))
         movie_db[title] = old_entries
         save_db()
-
 else:
     movie_db[title] = [(chat_username, message.id)]
     save_db()
