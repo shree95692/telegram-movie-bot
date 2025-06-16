@@ -259,18 +259,39 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                old_link = f"https://t.me/{old_entry[0].strip('@')}/{old_entry[1]}"
+                # Collect all previous links
+                previous_links = []
+                if isinstance(old_entry, list):
+                    previous_links = [
+                        f"https://t.me/{item[0].strip('@')}/{item[1]}"
+                        for item in old_entry
+                    ]
+                else:
+                    previous_links = [
+                        f"https://t.me/{old_entry[0].strip('@')}/{old_entry[1]}"
+                    ]
+
+                new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
+                previous_links_text = "\n".join(previous_links)
+
+                alert_text = (
+                    f"⚠️ Duplicate movie detected: {title.title()}\n\n"
+                    f"🔁 Previous posts:\n{previous_links_text}\n\n"
+                    f"🆕 New post:\n{new_link}"
+                )
+
                 try:
-                    await client.send_message(
-                        ALERT_CHANNEL,
-                        f"⚠️ Duplicate movie detected: {title.title()}\n\n"
-                        f"🔁 Previous: {old_link}\n"
-                        f"🆕 New: {new_link}"
-                    )
+                    await client.send_message(ALERT_CHANNEL, alert_text)
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-            movie_db[title] = (chat_username, message.id)
+                # Append new link to list
+                if isinstance(old_entry, list):
+                    movie_db[title].append((chat_username, message.id))
+                else:
+                    movie_db[title] = [old_entry, (chat_username, message.id)]
+            else:
+                movie_db[title] = (chat_username, message.id)
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
             try:
