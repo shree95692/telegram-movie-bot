@@ -263,54 +263,46 @@ async def new_post(client, message: Message):
                 if isinstance(old_entry, tuple):
                     old_entry = [old_entry]
 
-    valid_links = []
-    updated_entry = []
+                valid_links = []
+                updated_entry = []
 
-    for ch, msg_id in old_entry:
-        try:
-            msg = await client.get_messages(ch, msg_id)
-            if msg:
-                valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-                updated_entry.append((ch, msg_id))
-        except:
-            continue  # Skip deleted or invalid posts
+                for ch, msg_id in old_entry:
+                    try:
+                        msg = await client.get_messages(ch, msg_id)
+                        if msg:
+                            valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+                            updated_entry.append((ch, msg_id))
+                    except:
+                        continue  # Skip deleted or invalid posts
 
-    # Add the new one
-    valid_links.append(new_link)
-    updated_entry.append((chat_username, message.id))
+                # Add the new one
+                valid_links.append(new_link)
+                updated_entry.append((chat_username, message.id))
 
-    # Alert only if more than one post exists
-    if len(valid_links) > 1:
-        alert_text = (
-            f"⚠️ Duplicate movie detected: {title.title()}\n\n"
-            f"🔁 Previous posts:\n" + "\n".join(valid_links[:-1]) + "\n\n"
-            f"🆕 New post:\n{valid_links[-1]}"
-        )
-        try:
-            await client.send_message(ALERT_CHANNEL, alert_text)
-        except Exception as e:
-            print("⚠️ Duplicate alert send failed:", e)
+                # Alert only if more than one post exists
+                if len(valid_links) > 1:
+                    alert_text = (
+                        f"⚠️ Duplicate movie detected: {title.title()}\n\n"
+                        f"🔁 Previous posts:\n" + "\n".join(valid_links[:-1]) + "\n\n"
+                        f"🆕 New post:\n{valid_links[-1]}"
+                    )
+                    try:
+                        await client.send_message(ALERT_CHANNEL, alert_text)
+                    except Exception as e:
+                        print("⚠️ Duplicate alert send failed:", e)
 
-    movie_db[title] = updated_entry
-else:
-    movie_db[title] = (chat_username, message.id)
+                movie_db[title] = updated_entry
+            else:
+                movie_db[title] = (chat_username, message.id)
 
-save_db()
-print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-try:
-    await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-except Exception as e:
-    await client.send_message(ALERT_CHANNEL,
-        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-    )
-save_db()
-print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-try:
-    await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-except Exception as e:
-    await client.send_message(ALERT_CHANNEL,
-        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-    )
+            save_db()
+            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+            try:
+                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+            except Exception as e:
+                await client.send_message(ALERT_CHANNEL,
+                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+                )
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
             try:
