@@ -259,9 +259,9 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-    # Normalize to list
-    if isinstance(old_entry, tuple):
-        old_entry = [old_entry]
+                # Normalize to list
+                if isinstance(old_entry, tuple):
+                    old_entry = [old_entry]
 
     valid_links = []
     updated_entry = []
