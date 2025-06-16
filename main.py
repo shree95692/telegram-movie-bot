@@ -259,28 +259,39 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                # Convert old_entry to list if not already
-                if not isinstance(old_entry, list):
-                    old_entry = [old_entry]
+    # Normalize to list
+    if isinstance(old_entry, tuple):
+        old_entry = [old_entry]
 
-                # Create full list of previous post links
-                previous_links = [
-                    f"https://t.me/{ch.strip('@')}/{msg_id}" for ch, msg_id in old_entry
-                ]
+    valid_links = []
+    updated_entry = []
 
-                alert_text = (
-                    f"⚠️ Duplicate movie detected: {title.title()}\n\n"
-                    f"🔁 Previous posts:\n" + "\n".join(previous_links) + "\n\n"
-                    f"🆕 New post:\n{new_link}"
-                )
+    for ch, msg_id in old_entry:
+        try:
+            msg = await client.get_messages(ch, msg_id)
+            if msg:
+                valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+                updated_entry.append((ch, msg_id))
+        except:
+            continue  # Skip deleted or invalid posts
 
-                try:
-                    await client.send_message(ALERT_CHANNEL, alert_text)
-                except Exception as e:
-                    print("⚠️ Duplicate alert send failed:", e)
+    # Add the new one
+    valid_links.append(new_link)
+    updated_entry.append((chat_username, message.id))
 
-                old_entry.append((chat_username, message.id))
-                movie_db[title] = old_entry
+    # Alert only if more than one post exists
+    if len(valid_links) > 1:
+        alert_text = (
+            f"⚠️ Duplicate movie detected: {title.title()}\n\n"
+            f"🔁 Previous posts:\n" + "\n".join(valid_links[:-1]) + "\n\n"
+            f"🆕 New post:\n{valid_links[-1]}"
+        )
+        try:
+            await client.send_message(ALERT_CHANNEL, alert_text)
+        except Exception as e:
+            print("⚠️ Duplicate alert send failed:", e)
+
+    movie_db[title] = updated_entry
             else:
                 movie_db[title] = (chat_username, message.id)
 
