@@ -258,7 +258,7 @@ async def new_post(client, message: Message):
             old_entry = movie_db.get(title)
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
-if old_entry:
+            if old_entry:
                 # Convert old_entry to list if not already
                 if not isinstance(old_entry, list):
                     old_entry = [old_entry]
@@ -283,6 +283,15 @@ if old_entry:
                 movie_db[title] = old_entry
             else:
                 movie_db[title] = (chat_username, message.id)
+
+            save_db()
+            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+            try:
+                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+            except Exception as e:
+                await client.send_message(ALERT_CHANNEL,
+                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+                )
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
             try:
