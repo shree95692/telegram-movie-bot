@@ -101,13 +101,11 @@ def extract_title(text):
     if match:
         raw_title = match.group(1).strip()
 
-        # Stop at first unwanted keyword
         stop_words = ['480p', '720p', '1080p', 'HDRip', 'WEBRip', 'Download', 'Watch', 'Online', 'S01', 'S02', 'Complete']
         for stop in stop_words:
             if stop.lower() in raw_title.lower():
                 raw_title = raw_title[:raw_title.lower().find(stop.lower())].strip()
 
-        # Remove unwanted characters
         cleaned_title = re.sub(r'[^\w\s:\-()\'\"]+', '', raw_title)
         cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
 
@@ -205,7 +203,7 @@ async def search_movie(client, message: Message):
     matches = []
     for title, data in movie_db.items():
         if not (isinstance(data, (list, tuple)) and len(data) == 2):
-            continue  # skip invalid data
+            continue
         channel, msg_id = data
         if query in title:
             match_score = title.count(query)
@@ -259,7 +257,6 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                # Normalize to list
                 if isinstance(old_entry, tuple):
                     old_entry = [old_entry]
 
@@ -273,13 +270,11 @@ async def new_post(client, message: Message):
                             valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
                             updated_entry.append((ch, msg_id))
                     except:
-                        continue  # Skip deleted or invalid posts
+                        continue
 
-                # Add the new one
                 valid_links.append(new_link)
                 updated_entry.append((chat_username, message.id))
 
-                # Alert only if more than one post exists
                 if len(valid_links) > 1:
                     alert_text = (
                         f"⚠️ Duplicate movie detected: {title.title()}\n\n"
@@ -295,14 +290,6 @@ async def new_post(client, message: Message):
             else:
                 movie_db[title] = (chat_username, message.id)
 
-            save_db()
-            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-            try:
-                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-            except Exception as e:
-                await client.send_message(ALERT_CHANNEL,
-                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-                )
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
             try:
