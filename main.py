@@ -291,11 +291,11 @@ async def new_post(client, message: Message):
         except Exception as e:
             print("⚠️ Duplicate alert send failed:", e)
                 movie_db[title] = updated_entry
-            else:
-                movie_db[title] = (chat_username, message.id)
+    else:
+        movie_db[title] = (chat_username, message.id)
 
-            save_db()
-            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+    save_db()
+    print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
             try:
                 await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
             except Exception as e:
