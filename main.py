@@ -257,20 +257,25 @@ async def new_post(client, message: Message):
             new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
             if old_entry:
-                if isinstance(old_entry, tuple):
-                    old_entry = [old_entry]
+    # Ensure old_entry is list of tuples
+    if isinstance(old_entry, tuple):
+        old_entry = [old_entry]
+    elif isinstance(old_entry, list):
+        old_entry = [entry for entry in old_entry if isinstance(entry, tuple) and len(entry) == 2]
+    else:
+        old_entry = []
 
-                valid_links = []
-                updated_entry = []
+    valid_links = []
+    updated_entry = []
 
-                for ch, msg_id in old_entry:
-                    try:
-                        msg = await client.get_messages(ch, msg_id)
-                        if msg:
-                            valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-                            updated_entry.append((ch, msg_id))
-                    except:
-                        continue
+    for ch, msg_id in old_entry:
+        try:
+            msg = await client.get_messages(ch, msg_id)
+            if msg:
+                valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+                updated_entry.append((ch, msg_id))
+        except Exception as e:
+            print(f"⚠️ Old post fetch failed: {e}")
 
                 valid_links.append(new_link)
                 updated_entry.append((chat_username, message.id))
