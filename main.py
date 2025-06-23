@@ -333,11 +333,11 @@ for ch, msg_id in normalized:
         final.append((ch, msg_id))
 
 movie_db[title] = final
-            save_db()
+save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
-            try:
-                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+try:
+    await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
             except Exception as e:
                 await client.send_message(ALERT_CHANNEL,
                     text=f"❗ Message send failed:\n{new_link}\nError: {e}"
