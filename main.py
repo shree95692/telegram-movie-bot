@@ -145,115 +145,100 @@ async def init_channels(client, message: Message):
 
     await message.reply_text("\n\n".join(errors) if errors else "✅ Both channels initialized.")
 
-@bot.on_message(filters.command("list_movies"))
-async def list_movies(client, message: Message):
-    page = 1
-    try:
-        args = message.text.split()
-        if len(args) > 1:
-            page = int(args[1])
-    except:
-        pass
+@bot.on_message(filters.command("list_movies")) async def list_movies(client, message: Message): page = 1 try: args = message.text.split() if len(args) > 1: page = int(args[1]) except: pass
 
-    movies = sorted(movie_db.keys())
-    total_pages = math.ceil(len(movies) / 20)
+movies = sorted(movie_db.keys())
+total_pages = math.ceil(len(movies) / 20)
 
-    if page < 1 or page > total_pages:
-        await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
-        return
+if page < 1 or page > total_pages:
+    await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
+    return
 
-    start = (page - 1) * 20
-    end = start + 20
-    page_movies = movies[start:end]
-    text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
+start = (page - 1) * 20
+end = start + 20
+page_movies = movies[start:end]
+text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
 
-    for i, title in enumerate(page_movies, start=start + 1):
-        text += f"{i}. {title.title()}\n"
+for i, title in enumerate(page_movies, start=start + 1):
+    text += f"{i}. {title.title()}\n"
 
-    await message.reply_text(text)
+await message.reply_text(text)
 
-@bot.on_message(filters.command("add_movie"))
-async def add_movie_cmd(client, message: Message):
-    if message.from_user.id != 5163916480:
-        await message.reply_text("❌ You are not authorized to use this command.")
-        return
+@bot.on_message(filters.command("add_movie")) async def add_movie_cmd(client, message: Message): if message.from_user.id != 5163916480: await message.reply_text("❌ You are not authorized to use this command.") return
 
-    try:
-        _, data = message.text.split(" ", 1)
-        title, link = data.split("|", 1)
-        title = title.strip().lower()
-        link = link.strip()
-        match = re.search(r"t\.me/(.+)/(\d+)", link)
-        if match:
-            channel = "@" + match.group(1)
-            msg_id = int(match.group(2))
-            movie_db[title] = (channel, msg_id)
-            save_db()
-            await message.reply_text(f"✅ Added manually: {title}")
-        else:
-            await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
-    except:
-        await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
-
-@bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
-@bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
-async def search_movie(client, message: Message):
-    query = message.text.lower().strip()
-
-    greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
-    if query in greetings:
-        await message.reply_text("Hello 👋")
-        return
-
-    matches = []
-    for title, data in movie_db.items():
-        if query not in title:
-            continue
-
-        entries = []
-        if isinstance(data, tuple):
-            entries = [data]
-        elif isinstance(data, list):
-            for entry in data:
-                if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                    entries.append(tuple(entry))
-
-        for ch, msg_id in entries:
-            matches.append((title, ch, msg_id))
-
-    valid_results = []
-    to_remove = []
-
-    for title, ch, msg_id in matches[:5]:  # Only top 5 results
-        try:
-            msg = await client.get_messages(ch, msg_id)
-            if msg and (msg.text or msg.caption):
-                valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-            else:
-                to_remove.append(title)
-        except:
-            to_remove.append(title)
-
-    for title in to_remove:
-        movie_db.pop(title, None)
-    if to_remove:
+try:
+    _, data = message.text.split(" ", 1)
+    title, link = data.split("|", 1)
+    title = title.strip().lower()
+    link = link.strip()
+    match = re.search(r"t\.me/(.+)/(\d+)", link)
+    if match:
+        channel = "@" + match.group(1)
+        msg_id = int(match.group(2))
+        movie_db[title] = (channel, msg_id)
         save_db()
-
-    if valid_results:
-        await message.reply_text("🎬 Matching movies:\n" + "\n".join(valid_results))
+        await message.reply_text(f"✅ Added manually: {title}")
     else:
-        await message.reply_text(
-            "❌ Movie nahi mili bhai 😔\n"
-            "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
-            "📩 Request mil gayi hai!\n"
-            "⏳ 5-6 ghante me upload ho jayegi.\n"
-            "🍿 Tab tak popcorn leke chill maro!"
+        await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
+except:
+    await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
+
+@bot.on_message( filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]) ) async def search_movie(client, message: Message): query = message.text.lower().strip()
+
+greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
+if query in greetings:
+    await message.reply_text("Hello 👋")
+    return
+
+matches = []
+for title, data in movie_db.items():
+    if query not in title:
+        continue
+
+    entries = []
+    if isinstance(data, tuple):
+        entries = [data]
+    elif isinstance(data, list):
+        for entry in data:
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                entries.append(tuple(entry))
+
+    for ch, msg_id in entries:
+        matches.append((title, ch, msg_id))
+
+valid_results = []
+to_remove = []
+
+for title, ch, msg_id in matches[:5]:  # Only top 5 results
+    try:
+        msg = await client.get_messages(ch, msg_id)
+        if msg and (msg.text or msg.caption):
+            valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+        else:
+            to_remove.append(title)
+    except:
+        to_remove.append(title)
+
+for title in to_remove:
+    movie_db.pop(title, None)
+if to_remove:
+    save_db()
+
+if valid_results:
+    await message.reply_text("🎬 Matching movies:\n" + "\n".join(valid_results))
+else:
+    await message.reply_text(
+        "❌ Movie nahi mili bhai 😔\n"
+        "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
+        "📩 Request mil gayi hai!\n"
+        "⏳ 5-6 ghante me upload ho jayegi.\n"
+        "🍿 Tab tak popcorn leke chill maro!"
+    )
+    if message.from_user:
+        await client.send_message(
+            ALERT_CHANNEL,
+            text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
         )
-        if message.from_user:
-            await client.send_message(
-                ALERT_CHANNEL,
-                text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
-            )
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
