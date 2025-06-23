@@ -66,11 +66,11 @@ bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: (
-    max((msg_id for _, msg_id in item[1] if isinstance(item[1], list)), default=0)
-    if isinstance(item[1], list) else item[1][1]
-), reverse=True))
+            max((msg_id for _, msg_id in item[1] if isinstance(item[1], list)), default=0)
+            if isinstance(item[1], list) else item[1][1]
+        ), reverse=True))
 
-json.dump(sorted_db, f, indent=4, ensure_ascii=False)
+        json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
     if GITHUB_PAT:
         try:
