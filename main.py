@@ -69,7 +69,6 @@ def save_db():
             max((msg_id for _, msg_id in item[1] if isinstance(item[1], list)), default=0)
             if isinstance(item[1], list) else item[1][1]
         ), reverse=True))
-
         json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
     if GITHUB_PAT:
