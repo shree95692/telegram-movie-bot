@@ -311,38 +311,38 @@ async def new_post(client, message: Message):
 
             existing = movie_db.get(title, [])
 
-# Normalize existing format
-normalized = []
-if isinstance(existing, tuple):
-    normalized = [existing]
-elif isinstance(existing, list):
-    for e in existing:
-        if isinstance(e, (list, tuple)) and len(e) == 2:
-            normalized.append(tuple(e))
+            # Normalize existing format
+            normalized = []
+            if isinstance(existing, tuple):
+                normalized = [existing]
+            elif isinstance(existing, list):
+                for e in existing:
+                    if isinstance(e, (list, tuple)) and len(e) == 2:
+                        normalized.append(tuple(e))
 
-# Add new post to the top
-normalized.insert(0, (chat_username, message.id))
+            # Add new post to the top
+            normalized.insert(0, (chat_username, message.id))
 
-# Remove duplicates
-seen = set()
-final = []
-for ch, msg_id in normalized:
-    key = f"{ch}_{msg_id}"
-    if key not in seen:
-        seen.add(key)
-        final.append((ch, msg_id))
+            # Remove duplicates
+            seen = set()
+            final = []
+            for ch, msg_id in normalized:
+                key = f"{ch}_{msg_id}"
+                if key not in seen:
+                    seen.add(key)
+                    final.append((ch, msg_id))
 
-movie_db[title] = final
-save_db()
-print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+            movie_db[title] = final
+            save_db()
+            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
-try:
-    await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-except Exception as e:
-    await client.send_message(
-        ALERT_CHANNEL,
-        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-    )
+            try:
+                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+            except Exception as e:
+                await client.send_message(
+                    ALERT_CHANNEL,
+                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+                )
         else:
             await client.send_message(
                 ALERT_CHANNEL,
@@ -350,7 +350,6 @@ except Exception as e:
             )
     else:
         print("⚠️ Unknown channel.")
-
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
