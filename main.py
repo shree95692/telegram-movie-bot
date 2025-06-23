@@ -203,11 +203,10 @@ async def add_movie_cmd(client, message: Message):
 )
 async def search_movie(client, message: Message):
     query = message.text.lower().strip()
-greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
-if query in greetings:
-    await message.reply_text("Hello 👋")
-    return
-
+    greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
+    if query in greetings:
+        await message.reply_text("Hello 👋")
+        return
 matches = []
 for title, data in movie_db.items():
     if query not in title:
