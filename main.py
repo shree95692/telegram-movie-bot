@@ -65,7 +65,12 @@ bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(movie_db, f, indent=4, ensure_ascii=False)
+        sorted_db = dict(sorted(movie_db.items(), key=lambda item: (
+    max((msg_id for _, msg_id in item[1] if isinstance(item[1], list)), default=0)
+    if isinstance(item[1], list) else item[1][1]
+), reverse=True))
+
+json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
     if GITHUB_PAT:
         try:
@@ -192,6 +197,7 @@ async def add_movie_cmd(client, message: Message):
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 
 @bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
+@bot.on_message(filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]))
 async def search_movie(client, message: Message):
     query = message.text.lower().strip()
 
@@ -202,23 +208,28 @@ async def search_movie(client, message: Message):
 
     matches = []
     for title, data in movie_db.items():
-        if not (isinstance(data, (list, tuple)) and len(data) == 2):
+        if query not in title:
             continue
-        channel, msg_id = data
-        if query in title:
-            match_score = title.count(query)
-            matches.append((match_score, title, channel, msg_id))
 
-    matches.sort(key=lambda x: (-x[0], x[1]))
+        entries = []
+        if isinstance(data, tuple):
+            entries = [data]
+        elif isinstance(data, list):
+            for entry in data:
+                if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                    entries.append(tuple(entry))
+
+        for ch, msg_id in entries:
+            matches.append((title, ch, msg_id))
 
     valid_results = []
     to_remove = []
 
-    for _, title, channel, msg_id in matches[:5]:
+    for title, ch, msg_id in matches[:5]:  # Only top 5 results
         try:
-            msg = await client.get_messages(channel, msg_id)
+            msg = await client.get_messages(ch, msg_id)
             if msg and (msg.text or msg.caption):
-                valid_results.append(f"https://t.me/{channel.strip('@')}/{msg_id}")
+                valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
             else:
                 to_remove.append(title)
         except:
@@ -226,7 +237,6 @@ async def search_movie(client, message: Message):
 
     for title in to_remove:
         movie_db.pop(title, None)
-
     if to_remove:
         save_db()
 
@@ -240,11 +250,11 @@ async def search_movie(client, message: Message):
             "⏳ 5-6 ghante me upload ho jayegi.\n"
             "🍿 Tab tak popcorn leke chill maro!"
         )
-        await client.send_message(
-            ALERT_CHANNEL,
-            text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
-        )
-
+        if message.from_user:
+            await client.send_message(
+                ALERT_CHANNEL,
+                text=f"❌ Movie not found: {query}\nUser: [{message.from_user.first_name}](tg://user?id={message.from_user.id})"
+            )
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
     text = (message.text or message.caption) or ""
@@ -298,7 +308,30 @@ async def new_post(client, message: Message):
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-            movie_db[title] = updated_entry
+            existing = movie_db.get(title, [])
+
+# Normalize existing format
+normalized = []
+if isinstance(existing, tuple):
+    normalized = [existing]
+elif isinstance(existing, list):
+    for e in existing:
+        if isinstance(e, (list, tuple)) and len(e) == 2:
+            normalized.append(tuple(e))
+
+# Add new post to the top
+normalized.insert(0, (chat_username, message.id))
+
+# Remove duplicates
+seen = set()
+final = []
+for ch, msg_id in normalized:
+    key = f"{ch}_{msg_id}"
+    if key not in seen:
+        seen.add(key)
+        final.append((ch, msg_id))
+
+movie_db[title] = final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
