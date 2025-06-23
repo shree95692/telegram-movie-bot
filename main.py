@@ -177,22 +177,23 @@ async def add_movie_cmd(client, message: Message):
     if message.from_user.id != 5163916480:
         await message.reply_text("❌ You are not authorized to use this command.")
         return
-try:
-    _, data = message.text.split(" ", 1)
-    title, link = data.split("|", 1)
-    title = title.strip().lower()
-    link = link.strip()
-    match = re.search(r"t\.me/(.+)/(\d+)", link)
-    if match:
-        channel = "@" + match.group(1)
-        msg_id = int(match.group(2))
-        movie_db[title] = (channel, msg_id)
-        save_db()
-        await message.reply_text(f"✅ Added manually: {title}")
-    else:
-        await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
-except:
-    await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
+
+    try:
+        _, data = message.text.split(" ", 1)
+        title, link = data.split("|", 1)
+        title = title.strip().lower()
+        link = link.strip()
+        match = re.search(r"t\.me/(.+)/(\d+)", link)
+        if match:
+            channel = "@" + match.group(1)
+            msg_id = int(match.group(2))
+            movie_db[title] = (channel, msg_id)
+            save_db()
+            await message.reply_text(f"✅ Added manually: {title}")
+        else:
+            await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
+    except:
+        await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 
 @bot.on_message(
     filters.incoming &
