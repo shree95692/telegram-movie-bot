@@ -194,8 +194,14 @@ try:
 except:
     await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 
-@bot.on_message( filters.incoming & (filters.private | filters.group) & filters.text & ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"]) ) async def search_movie(client, message: Message): query = message.text.lower().strip()
-
+@bot.on_message(
+    filters.incoming &
+    (filters.private | filters.group) &
+    filters.text &
+    ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"])
+)
+async def search_movie(client, message: Message):
+    query = message.text.lower().strip()
 greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
 if query in greetings:
     await message.reply_text("Hello 👋")
