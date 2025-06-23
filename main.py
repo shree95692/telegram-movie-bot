@@ -65,10 +65,17 @@ bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        sorted_db = dict(sorted(movie_db.items(), key=lambda item: (
-            max((msg_id for _, msg_id in item[1] if isinstance(item[1], list)), default=0)
-            if isinstance(item[1], list) else item[1][1]
-        ), reverse=True))
+        def get_latest_msg_id(entry):
+            entries = []
+            if isinstance(entry, tuple) and len(entry) == 2:
+                entries = [entry]
+            elif isinstance(entry, list):
+                entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
+
+            msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
+            return max(msg_ids, default=0)
+
+        sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
         json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
     if GITHUB_PAT:
