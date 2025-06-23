@@ -147,22 +147,32 @@ async def init_channels(client, message: Message):
 
 @bot.on_message(filters.command("list_movies")) async def list_movies(client, message: Message): page = 1 try: args = message.text.split() if len(args) > 1: page = int(args[1]) except: pass
 
-movies = sorted(movie_db.keys())
-total_pages = math.ceil(len(movies) / 20)
+@bot.on_message(filters.command("list_movies"))
+async def list_movies(client, message: Message):
+    page = 1
+    try:
+        args = message.text.split()
+        if len(args) > 1:
+            page = int(args[1])
+    except:
+        pass
 
-if page < 1 or page > total_pages:
-    await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
-    return
+    movies = sorted(movie_db.keys())
+    total_pages = math.ceil(len(movies) / 20)
 
-start = (page - 1) * 20
-end = start + 20
-page_movies = movies[start:end]
-text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
+    if page < 1 or page > total_pages:
+        await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
+        return
 
-for i, title in enumerate(page_movies, start=start + 1):
-    text += f"{i}. {title.title()}\n"
+    start = (page - 1) * 20
+    end = start + 20
+    page_movies = movies[start:end]
+    text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
 
-await message.reply_text(text)
+    for i, title in enumerate(page_movies, start=start + 1):
+        text += f"{i}. {title.title()}\n"
+
+    await message.reply_text(text)
 
 @bot.on_message(filters.command("add_movie")) async def add_movie_cmd(client, message: Message): if message.from_user.id != 5163916480: await message.reply_text("❌ You are not authorized to use this command.") return
 
