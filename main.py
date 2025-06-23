@@ -145,8 +145,6 @@ async def init_channels(client, message: Message):
 
     await message.reply_text("\n\n".join(errors) if errors else "✅ Both channels initialized.")
 
-@bot.on_message(filters.command("list_movies")) async def list_movies(client, message: Message): page = 1 try: args = message.text.split() if len(args) > 1: page = int(args[1]) except: pass
-
 @bot.on_message(filters.command("list_movies"))
 async def list_movies(client, message: Message):
     page = 1
@@ -174,8 +172,11 @@ async def list_movies(client, message: Message):
 
     await message.reply_text(text)
 
-@bot.on_message(filters.command("add_movie")) async def add_movie_cmd(client, message: Message): if message.from_user.id != 5163916480: await message.reply_text("❌ You are not authorized to use this command.") return
-
+@bot.on_message(filters.command("add_movie"))
+async def add_movie_cmd(client, message: Message):
+    if message.from_user.id != 5163916480:
+        await message.reply_text("❌ You are not authorized to use this command.")
+        return
 try:
     _, data = message.text.split(" ", 1)
     title, link = data.split("|", 1)
