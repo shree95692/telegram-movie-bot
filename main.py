@@ -194,7 +194,7 @@ async def add_movie_cmd(client, message: Message):
         if match:
             channel = "@" + match.group(1)
             msg_id = int(match.group(2))
-            movie_db[title] = [channel, msg_id]
+            movie_db[title] = (channel, msg_id)
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
