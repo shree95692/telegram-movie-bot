@@ -86,7 +86,6 @@ def save_db():
             lines.append(line)
 
         f.write("{\n" + "\n".join(lines) + "\n}")
-
     if GITHUB_PAT:
         try:
             with open(DB_FILE, "rb") as f:
