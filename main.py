@@ -78,14 +78,12 @@ def save_db():
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
 
         lines = []
-        total = len(sorted_db)
-        for i, (key, value) in enumerate(sorted_db.items()):
-            line = f'  "{key}": {json.dumps(value, ensure_ascii=False)}'
-            if i != total - 1:
-                line += ","
+        for key, value in sorted_db.items():
+            line = json.dumps({key: value}, ensure_ascii=False)
             lines.append(line)
 
-        f.write("{\n" + "\n".join(lines) + "\n}")
+        f.write("{\n" + ",\n".join(lines) + "\n}")
+
     if GITHUB_PAT:
         try:
             with open(DB_FILE, "rb") as f:
