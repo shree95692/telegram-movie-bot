@@ -221,9 +221,18 @@ async def search_movie(client, message: Message):
         await message.reply_text("Hello 👋")
         return
 
+    def normalize_title(title):
+        title = title.lower()
+        title = re.sub(r'\d{4}', '', title)
+        title = re.sub(r'\d{4}', '', title)
+        title = re.sub(r'\s+', ' ', title).strip()
+        return title
+
+    normalized_query = normalize_title(query)
+
     matches = []
     for title, data in movie_db.items():
-        if query not in title:
+        if normalized_query not in normalize_title(title):
             continue
 
         entries = []
