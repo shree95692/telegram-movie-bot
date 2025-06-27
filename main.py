@@ -80,7 +80,7 @@ def save_db():
         lines = []
         total = len(sorted_db)
         for i, (key, value) in enumerate(sorted_db.items()):
-            line = f'  {json.dumps(key)}: {json.dumps(value, ensure_ascii=False)}'
+            line = f'  "{key}": {json.dumps(value, ensure_ascii=False)}'
             if i != total - 1:
                 line += ","
             lines.append(line)
