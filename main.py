@@ -56,20 +56,8 @@ if not os.path.exists(DB_FILE):
     restore_db_from_github()
 
 if os.path.exists(DB_FILE):
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            content = f.read()
-            lines = [line.strip().rstrip(',') for line in content.strip().splitlines() if line.strip() not in ['{', '}']]
-            movie_db = {}
-            for line in lines:
-                try:
-                    obj = json.loads(line)
-                    movie_db.update(obj)
-                except json.JSONDecodeError:
-                    pass
-    except Exception as e:
-        print("❌ Failed to load movie_db:", e)
-        movie_db = {}
+    with open(DB_FILE, "r") as f:
+        movie_db = json.load(f)
 else:
     movie_db = {}
 
