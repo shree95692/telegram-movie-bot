@@ -71,18 +71,11 @@ def save_db():
                 entries = [entry]
             elif isinstance(entry, list):
                 entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
-
             msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
             return max(msg_ids, default=0)
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
-
-        lines = []
-        for key, value in sorted_db.items():
-            line = json.dumps({key: value}, ensure_ascii=False)
-            lines.append(line)
-
-        f.write("{\n" + ",\n".join(lines) + "\n}")
+        json.dump(sorted_db, f, ensure_ascii=False, indent=2)  # ✅ Always valid
 
     if GITHUB_PAT:
         try:
