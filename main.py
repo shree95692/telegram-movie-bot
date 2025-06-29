@@ -106,21 +106,26 @@ def push_to_github(content):
     response = requests.put(url, headers=headers, json=data)
     print("📤 GitHub push status:", response.status_code)
 
+EXTRA_PHRASES = [
+    "in hindi", "hindi dubbed", "south movie", "movie", "drama",
+    "watch online", "download", "latest", "full movie"
+]
+
+def clean_title(title):
+    title = title.lower()
+    for phrase in EXTRA_PHRASES:
+        title = title.replace(phrase, "")
+    title = re.sub(r'.*?', '', title)         # remove [Hindi], etc.
+    title = re.sub(r'.*?', '', title)         # remove (2024), etc.
+    title = re.sub(r'\d{4}', '', title)           # remove 2023, 2024, etc.
+    title = re.sub(r'[^a-z0-9\s:\-]', '', title)  # clean punctuation
+    title = re.sub(r'\s+', ' ', title).strip()    # clean extra spaces
+    return title
+
 def extract_title(text):
     match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
     if match:
-        raw_title = match.group(1).strip()
-
-        stop_words = ['480p', '720p', '1080p', 'HDRip', 'WEBRip', 'Download', 'Watch', 'Online', 'S01', 'S02', 'Complete']
-        for stop in stop_words:
-            if stop.lower() in raw_title.lower():
-                raw_title = raw_title[:raw_title.lower().find(stop.lower())].strip()
-
-        cleaned_title = re.sub(r'[^\w\s:\-()\'\"]+', '', raw_title)
-        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
-
-        return cleaned_title.lower() if cleaned_title else None
-
+        return clean_title(match.group(1))
     return None
 
 @bot.on_message(filters.command("start"))
