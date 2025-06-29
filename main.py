@@ -331,28 +331,30 @@ async def new_post(client, message: Message):
 
             existing = movie_db.get(title, [])
 
-            # Normalize existing format
-            normalized = []
-            if isinstance(existing, tuple):
-                normalized = [existing]
-            elif isinstance(existing, list):
-                for e in existing:
-                    if isinstance(e, (list, tuple)) and len(e) == 2:
-                        normalized.append(tuple(e))
+# Normalize old format
+normalized = []
+if isinstance(existing, (list, tuple)):
+    if all(isinstance(x, (str, int)) for x in existing) and len(existing) == 2:
+        normalized = [tuple(existing)]
+    else:
+        for e in existing:
+            if isinstance(e, (list, tuple)) and len(e) == 2:
+                normalized.append(tuple(e))
 
-            # Add new post to the top
-            normalized.insert(0, (chat_username, message.id))
+# Add new post at the top
+normalized.insert(0, (chat_username, message.id))
 
-            # Remove duplicates
-            seen = set()
-            final = []
-            for ch, msg_id in normalized:
-                key = f"{ch}_{msg_id}"
-                if key not in seen:
-                    seen.add(key)
-                    final.append((ch, msg_id))
+# Remove duplicates
+seen = set()
+final = []
+for ch, msg_id in normalized:
+    key = f"{ch}_{msg_id}"
+    if key not in seen:
+        seen.add(key)
+        final.append((ch, msg_id))
 
-            movie_db[title] = final[0] if len(final) == 1 else final
+# 🔁 Save without deleting old entries
+movie_db[title] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
