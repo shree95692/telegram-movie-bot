@@ -52,7 +52,8 @@ def restore_db_from_github():
     except Exception as e:
         print("Restore failed:", e)
 
-if not os.path.exists(DB_FILE):
+if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
+    print("⚠️ Local DB missing or empty. Restoring from GitHub...")
     restore_db_from_github()
 
 if os.path.exists(DB_FILE):
