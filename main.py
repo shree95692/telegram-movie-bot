@@ -76,8 +76,16 @@ def save_db():
             return max(msg_ids, default=0)
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
-        json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
+        lines = []
+        total = len(sorted_db)
+        for i, (key, value) in enumerate(sorted_db.items()):
+            line = f'  "{key}": {json.dumps(value, ensure_ascii=False)}'
+            if i != total - 1:
+                line += ","
+            lines.append(line)
+
+        f.write("{\n" + "\n".join(lines) + "\n}")
     if GITHUB_PAT:
         try:
             with open(DB_FILE, "rb") as f:
@@ -340,7 +348,7 @@ async def new_post(client, message: Message):
                     seen.add(key)
                     final.append((ch, msg_id))
 
-            movie_db[title] = final
+            movie_db[title] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
