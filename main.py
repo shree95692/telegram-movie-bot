@@ -56,8 +56,17 @@ if not os.path.exists(DB_FILE):
     restore_db_from_github()
 
 if os.path.exists(DB_FILE):
-    with open(DB_FILE, "r") as f:
+    with open(DB_FILE, "r", encoding="utf-8") as f:
+    try:
         movie_db = json.load(f)
+        if isinstance(movie_db, list):
+            fixed_db = {}
+            for item in movie_db:
+                if isinstance(item, dict):
+                    fixed_db.update(item)
+            movie_db = fixed_db
+    except json.JSONDecodeError:
+        movie_db = {}
 else:
     movie_db = {}
 
