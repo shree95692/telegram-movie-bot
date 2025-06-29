@@ -220,7 +220,7 @@ async def search_movie(client, message: Message):
 
     matches = []
     for title, data in movie_db.items():
-        if query not in title:
+        if clean_title(query) not in clean_title(title):
             continue
 
         entries = []
