@@ -121,7 +121,6 @@ def clean_title(title):
     title = re.sub(r'[^a-z0-9\s:\-]', '', title)  # clean punctuation
     title = re.sub(r'\s+', ' ', title).strip()    # clean extra spaces
     return title
-
 def extract_title(text):
     match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
     if match:
