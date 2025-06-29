@@ -52,22 +52,12 @@ def restore_db_from_github():
     except Exception as e:
         print("Restore failed:", e)
 
-if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
-    print("⚠️ Local DB missing or empty. Restoring from GitHub...")
+if not os.path.exists(DB_FILE):
     restore_db_from_github()
 
 if os.path.exists(DB_FILE):
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            movie_db = json.load(f)
-            if isinstance(movie_db, list):
-                fixed_db = {}
-                for item in movie_db:
-                    if isinstance(item, dict):
-                        fixed_db.update(item)
-                movie_db = fixed_db
-    except json.JSONDecodeError:
-        movie_db = {}
+    with open(DB_FILE, "r") as f:
+        movie_db = json.load(f)
 else:
     movie_db = {}
 
@@ -86,8 +76,8 @@ def save_db():
             return max(msg_ids, default=0)
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
+        json.dump(sorted_db, f, indent=4, ensure_ascii=False)
 
-        json.dump(sorted_db, f, ensure_ascii=False, indent=2)
     if GITHUB_PAT:
         try:
             with open(DB_FILE, "rb") as f:
@@ -231,15 +221,12 @@ async def search_movie(client, message: Message):
             continue
 
         entries = []
-        if isinstance(data, tuple) and len(data) == 2:
+        if isinstance(data, tuple):
             entries = [data]
         elif isinstance(data, list):
-            if all(isinstance(x, (str, int)) for x in data) and len(data) == 2:
-                entries = [tuple(data)]
-            else:
-                for entry in data:
-                    if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                        entries.append(tuple(entry))
+            for entry in data:
+                if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                    entries.append(tuple(entry))
 
         for ch, msg_id in entries:
             matches.append((title, ch, msg_id))
@@ -332,17 +319,16 @@ async def new_post(client, message: Message):
 
             existing = movie_db.get(title, [])
 
-            # Normalize old format
+            # Normalize existing format
             normalized = []
-            if isinstance(existing, (list, tuple)):
-                if all(isinstance(x, (str, int)) for x in existing) and len(existing) == 2:
-                    normalized = [tuple(existing)]
-                else:
-                    for e in existing:
-                        if isinstance(e, (list, tuple)) and len(e) == 2:
-                            normalized.append(tuple(e))
+            if isinstance(existing, tuple):
+                normalized = [existing]
+            elif isinstance(existing, list):
+                for e in existing:
+                    if isinstance(e, (list, tuple)) and len(e) == 2:
+                        normalized.append(tuple(e))
 
-            # Add new post at the top
+            # Add new post to the top
             normalized.insert(0, (chat_username, message.id))
 
             # Remove duplicates
@@ -354,10 +340,10 @@ async def new_post(client, message: Message):
                     seen.add(key)
                     final.append((ch, msg_id))
 
-            # 🔁 Save without deleting old entries
-            movie_db[title] = final[0] if len(final) == 1 else final
+            movie_db[title] = final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+
             try:
                 await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
             except Exception as e:
