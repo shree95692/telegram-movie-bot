@@ -230,12 +230,15 @@ async def search_movie(client, message: Message):
             continue
 
         entries = []
-        if isinstance(data, tuple):
+        if isinstance(data, tuple) and len(data) == 2:
             entries = [data]
         elif isinstance(data, list):
-            for entry in data:
-                if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                    entries.append(tuple(entry))
+            if all(isinstance(x, (str, int)) for x in data) and len(data) == 2:
+                entries = [tuple(data)]
+            else:
+                for entry in data:
+                    if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                        entries.append(tuple(entry))
 
         for ch, msg_id in entries:
             matches.append((title, ch, msg_id))
