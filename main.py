@@ -55,41 +55,9 @@ def restore_db_from_github():
 if not os.path.exists(DB_FILE):
     restore_db_from_github()
 
-EXTRA_PHRASES = [
-    "in hindi", "hindi dubbed", "south movie", "movie", "drama",
-    "watch online", "download", "latest", "full movie"
-]
-
-def clean_title(title):
-    title = title.lower()
-    for phrase in EXTRA_PHRASES:
-        title = title.replace(phrase, "")
-    title = re.sub(r'.*?', '', title)        # remove (2023), (Hindi)
-    title = re.sub(r'.*?', '', title)        # remove [S01], [Hindi]
-    title = re.sub(r'\d{4}', '', title)          # remove 2023, 2024
-    title = re.sub(r'[^a-z0-9\s]', '', title)    # remove punctuation
-    title = re.sub(r'\s+', ' ', title).strip()   # normalize spacing
-    return title
-
-# ✅ Move this BELOW clean_title()
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
-        raw_db = json.load(f)
-
-    movie_db = {}
-    for title, data in raw_db.items():
-        clean_key = clean_title(title)
-        if clean_key in movie_db:
-            existing = movie_db[clean_key]
-            if isinstance(existing, list):
-                if isinstance(data, list):
-                    movie_db[clean_key] = existing + data
-                else:
-                    movie_db[clean_key] = existing + [data]
-            else:
-                movie_db[clean_key] = [existing] + (data if isinstance(data, list) else [data])
-        else:
-            movie_db[clean_key] = data
+        movie_db = json.load(f)
 else:
     movie_db = {}
 
@@ -103,11 +71,12 @@ def save_db():
                 entries = [entry]
             elif isinstance(entry, list):
                 entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
+
             msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
             return max(msg_ids, default=0)
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
-        json.dump(sorted_db, f, ensure_ascii=False, indent=2)  # ✅ Always valid
+        json.dump(sorted_db, f, indent=1, separators=(",", ": "), ensure_ascii=False)
 
     if GITHUB_PAT:
         try:
@@ -141,7 +110,18 @@ def push_to_github(content):
 def extract_title(text):
     match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
     if match:
-        return clean_title(match.group(1))
+        raw_title = match.group(1).strip()
+
+        stop_words = ['480p', '720p', '1080p', 'HDRip', 'WEBRip', 'Download', 'Watch', 'Online', 'S01', 'S02', 'Complete']
+        for stop in stop_words:
+            if stop.lower() in raw_title.lower():
+                raw_title = raw_title[:raw_title.lower().find(stop.lower())].strip()
+
+        cleaned_title = re.sub(r'[^\w\s:\-()\'\"]+', '', raw_title)
+        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
+
+        return cleaned_title.lower() if cleaned_title else None
+
     return None
 
 @bot.on_message(filters.command("start"))
@@ -208,37 +188,20 @@ async def add_movie_cmd(client, message: Message):
     try:
         _, data = message.text.split(" ", 1)
         title, link = data.split("|", 1)
+        title = title.strip().lower()
         link = link.strip()
         match = re.search(r"t\.me/(.+)/(\d+)", link)
         if match:
             channel = "@" + match.group(1)
             msg_id = int(match.group(2))
-
-            key = clean_title(title.strip())
-            existing = movie_db.get(key, [])
-            if isinstance(existing, tuple):
-                existing = [existing]
-            elif not isinstance(existing, list):
-                existing = []
-
-            existing.insert(0, (channel, msg_id))
-
-            # Remove duplicates
-            seen = set()
-            final = []
-            for ch, msg_id in existing:
-                uid = f"{ch}_{msg_id}"
-                if uid not in seen:
-                    seen.add(uid)
-                    final.append((ch, msg_id))
-
-            movie_db[key] = final[0] if len(final) == 1 else final
+            movie_db[title] = (channel, msg_id)
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
             await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
     except:
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
+
 @bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
@@ -252,20 +215,21 @@ async def search_movie(client, message: Message):
         await message.reply_text("Hello 👋")
         return
 
-    query_clean = clean_title(query)
     matches = []
-
     for title, data in movie_db.items():
-        title_clean = clean_title(title)
-        if query_clean in title_clean or title_clean in query_clean:
-            entries = []
-            if isinstance(data, tuple):
-                entries = [data]
-            elif isinstance(data, list):
-                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
+        if query not in title:
+            continue
 
-            for ch, msg_id in entries:
-                matches.append((title, ch, msg_id))
+        entries = []
+        if isinstance(data, tuple):
+            entries = [data]
+        elif isinstance(data, list):
+            for entry in data:
+                if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                    entries.append(tuple(entry))
+
+        for ch, msg_id in entries:
+            matches.append((title, ch, msg_id))
 
     valid_results = []
     to_remove = []
@@ -353,7 +317,7 @@ async def new_post(client, message: Message):
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-            existing = movie_db.get(clean_title(title), [])
+            existing = movie_db.get(title, [])
 
             # Normalize existing format
             normalized = []
@@ -376,7 +340,7 @@ async def new_post(client, message: Message):
                     seen.add(key)
                     final.append((ch, msg_id))
 
-            movie_db[clean_title(title)] = final[0] if len(final) == 1 else final
+            movie_db[title] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
