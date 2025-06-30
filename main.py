@@ -206,40 +206,39 @@ async def add_movie_cmd(client, message: Message):
         return
 
     try:
-        _, data = message.text.split(" ", 1)
-        title, link = data.split("|", 1)
-        title = clean_title(title.strip())
-        link = link.strip()
-        match = re.search(r"t\.me/(.+)/(\d+)", link)
-        if match:
-            channel = "@" + match.group(1)
-            msg_id = int(match.group(2))
-            key = clean_title(title.strip())
-existing = movie_db.get(key, [])
-if isinstance(existing, tuple):
-    existing = [existing]
-elif not isinstance(existing, list):
-    existing = []
+    _, data = message.text.split(" ", 1)
+    title, link = data.split("|", 1)
+    link = link.strip()
+    match = re.search(r"t\.me/(.+)/(\d+)", link)
+    if match:
+        channel = "@" + match.group(1)
+        msg_id = int(match.group(2))
 
-existing.insert(0, (channel, msg_id))
+        key = clean_title(title.strip())
+        existing = movie_db.get(key, [])
+        if isinstance(existing, tuple):
+            existing = [existing]
+        elif not isinstance(existing, list):
+            existing = []
 
-# Remove duplicates
-seen = set()
-final = []
-for ch, msg_id in existing:
-    uid = f"{ch}_{msg_id}"
-    if uid not in seen:
-        seen.add(uid)
-        final.append((ch, msg_id))
+        existing.insert(0, (channel, msg_id))
 
-movie_db[key] = final[0] if len(final) == 1 else final
-            save_db()
-            await message.reply_text(f"✅ Added manually: {title}")
-        else:
-            await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
-    except:
-        await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
+        # Remove duplicates
+        seen = set()
+        final = []
+        for ch, msg_id in existing:
+            uid = f"{ch}_{msg_id}"
+            if uid not in seen:
+                seen.add(uid)
+                final.append((ch, msg_id))
 
+        movie_db[key] = final[0] if len(final) == 1 else final
+        save_db()
+        await message.reply_text(f"✅ Added manually: {title}")
+    else:
+        await message.reply_text("❌ Invalid link format. Use /add_movie Movie Name | https://t.me/channel/123")
+except:
+    await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 @bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
