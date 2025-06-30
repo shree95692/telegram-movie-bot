@@ -206,6 +206,7 @@ async def add_movie_cmd(client, message: Message):
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 
 @bot.on_message(
+@bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
     filters.text &
@@ -218,21 +219,20 @@ async def search_movie(client, message: Message):
         await message.reply_text("Hello 👋")
         return
 
+    query_clean = clean_title(query)
     matches = []
+
     for title, data in movie_db.items():
-        if clean_title(query) not in clean_title(title):
-            continue
+        title_clean = clean_title(title)
+        if query_clean in title_clean or title_clean in query_clean:
+            entries = []
+            if isinstance(data, tuple):
+                entries = [data]
+            elif isinstance(data, list):
+                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
 
-        entries = []
-        if isinstance(data, tuple):
-            entries = [data]
-        elif isinstance(data, list):
-            for entry in data:
-                if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                    entries.append(tuple(entry))
-
-        for ch, msg_id in entries:
-            matches.append((title, ch, msg_id))
+            for ch, msg_id in entries:
+                matches.append((title, ch, msg_id))
 
     valid_results = []
     to_remove = []
