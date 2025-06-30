@@ -214,7 +214,25 @@ async def add_movie_cmd(client, message: Message):
         if match:
             channel = "@" + match.group(1)
             msg_id = int(match.group(2))
-            movie_db[title] = (channel, msg_id)
+            key = clean_title(title.strip())
+existing = movie_db.get(key, [])
+if isinstance(existing, tuple):
+    existing = [existing]
+elif not isinstance(existing, list):
+    existing = []
+
+existing.insert(0, (channel, msg_id))
+
+# Remove duplicates
+seen = set()
+final = []
+for ch, msg_id in existing:
+    uid = f"{ch}_{msg_id}"
+    if uid not in seen:
+        seen.add(uid)
+        final.append((ch, msg_id))
+
+movie_db[key] = final[0] if len(final) == 1 else final
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
