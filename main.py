@@ -336,7 +336,7 @@ async def new_post(client, message: Message):
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-            existing = movie_db.get(title, [])
+            existing = movie_db.get(clean_title(title), [])
 
             # Normalize existing format
             normalized = []
@@ -359,7 +359,7 @@ async def new_post(client, message: Message):
                     seen.add(key)
                     final.append((ch, msg_id))
 
-            movie_db[title] = final[0] if len(final) == 1 else final
+            movie_db[clean_title(title)] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
