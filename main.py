@@ -138,21 +138,6 @@ def push_to_github(content):
     response = requests.put(url, headers=headers, json=data)
     print("📤 GitHub push status:", response.status_code)
 
-EXTRA_PHRASES = [
-    "in hindi", "hindi dubbed", "south movie", "movie", "drama",
-    "watch online", "download", "latest", "full movie"
-]
-
-def clean_title(title):
-    title = title.lower()
-    for phrase in EXTRA_PHRASES:
-        title = title.replace(phrase, "")
-    title = re.sub(r'.*?', '', title)        # remove (2023), (Hindi)
-    title = re.sub(r'.*?', '', title)        # remove [S01], [Hindi]
-    title = re.sub(r'\d{4}', '', title)          # remove 2023, 2024
-    title = re.sub(r'[^a-z0-9\s]', '', title)    # remove punctuation
-    title = re.sub(r'\s+', ' ', title).strip()   # normalize spacing
-    return title
 def extract_title(text):
     match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
     if match:
