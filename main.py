@@ -191,7 +191,7 @@ async def add_movie_cmd(client, message: Message):
     try:
         _, data = message.text.split(" ", 1)
         title, link = data.split("|", 1)
-        title = title.strip().lower()
+        title = clean_title(title.strip())
         link = link.strip()
         match = re.search(r"t\.me/(.+)/(\d+)", link)
         if match:
