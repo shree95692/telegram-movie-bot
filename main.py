@@ -206,7 +206,6 @@ async def add_movie_cmd(client, message: Message):
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 
 @bot.on_message(
-@bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
     filters.text &
