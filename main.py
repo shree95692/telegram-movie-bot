@@ -57,7 +57,23 @@ if not os.path.exists(DB_FILE):
 
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
-        movie_db = json.load(f)
+    raw_db = json.load(f)
+
+movie_db = {}
+for title, data in raw_db.items():
+    clean_key = clean_title(title)
+    if clean_key in movie_db:
+        # merge if already exists
+        existing = movie_db[clean_key]
+        if isinstance(existing, list):
+            if isinstance(data, list):
+                movie_db[clean_key] = existing + data
+            else:
+                movie_db[clean_key] = existing + [data]
+        else:
+            movie_db[clean_key] = [existing] + (data if isinstance(data, list) else [data])
+    else:
+        movie_db[clean_key] = data
 else:
     movie_db = {}
 
