@@ -75,7 +75,6 @@ def clean_title(title):
 
 # ✅ Move this BELOW clean_title()
 movie_db = {}
-movie_db = {}
 
 try:
     with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -113,7 +112,6 @@ if raw_db:
             movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
 else:
     print("⚠️ No movie data loaded into memory.")
-else:
     movie_db = {}
 
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
