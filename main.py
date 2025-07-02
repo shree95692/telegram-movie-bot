@@ -75,10 +75,10 @@ def clean_title(title):
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
         try:
-    raw_db = json.load(f)
-except json.JSONDecodeError as e:
-    print(f"❌ JSON Decode Error while reading DB: {e}")
-    raw_db = {}
+            raw_db = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON Decode Error while reading DB: {e}")
+            raw_db = {}
 
     movie_db = {}
     for title, data in raw_db.items():
