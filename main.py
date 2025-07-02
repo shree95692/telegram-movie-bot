@@ -76,40 +76,39 @@ def clean_title(title):
 # ✅ Move this BELOW clean_title()
 movie_db = {}
 
-if os.path.exists(DB_FILE):
+try:
     with open(DB_FILE, "r") as f:
-        try:
-            raw_db = json.load(f)
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON Decode Error while reading DB: {e}")
-            raw_db = {}
+        raw_db = json.load(f)
+except Exception as e:
+    print(f"❌ Failed to load DB: {e}")
+    raw_db = {}
 
-    for title, data in raw_db.items():
-        clean_key = clean_title(title)
-        entries = []
+for title, data in raw_db.items():
+    clean_key = clean_title(title)
+    entries = []
 
-        if isinstance(data, list):
-            for item in data:
-                if isinstance(item, (list, tuple)) and len(item) == 2:
-                    entries.append(tuple(item))
-        elif isinstance(data, tuple) and len(data) == 2:
-            entries.append(data)
-        elif isinstance(data, str):
-            match = re.search(r"t\.me/(.+)/(\d+)", data)
-            if match:
-                entries.append(("@" + match.group(1), int(match.group(2))))
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                entries.append(tuple(item))
+    elif isinstance(data, tuple) and len(data) == 2:
+        entries.append(data)
+    elif isinstance(data, str):
+        match = re.search(r"t\.me/(.+)/(\d+)", data)
+        if match:
+            entries.append(("@" + match.group(1), int(match.group(2))))
 
-        # Remove duplicates
-        seen = set()
-        unique = []
-        for ch, msg_id in entries:
-            uid = f"{ch}_{msg_id}"
-            if uid not in seen:
-                seen.add(uid)
-                unique.append((ch, msg_id))
+    # Remove duplicates
+    seen = set()
+    unique = []
+    for ch, msg_id in entries:
+        uid = f"{ch}_{msg_id}"
+        if uid not in seen:
+            seen.add(uid)
+            unique.append((ch, msg_id))
 
-        if unique:
-            movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
+    if unique:
+        movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
 else:
     movie_db = {}
 
