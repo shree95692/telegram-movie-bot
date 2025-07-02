@@ -205,19 +205,40 @@ async def list_movies(client, message: Message):
     except:
         pass
 
-    movies = sorted(movie_db.keys())
-    total_pages = math.ceil(len(movies) / 20)
+    valid_movies = []
+    for title, data in movie_db.items():
+        entries = []
+        if isinstance(data, tuple) and len(data) == 2:
+            entries = [data]
+        elif isinstance(data, list):
+            entries = [e for e in data if isinstance(e, (list, tuple)) and len(e) == 2]
+        else:
+            continue
 
+        for ch, msg_id in entries:
+            try:
+                msg = await client.get_messages(ch, msg_id)
+                if msg and (msg.text or msg.caption):
+                    latest_msg_id = msg.id
+                    valid_movies.append((title, latest_msg_id))
+                    break
+            except:
+                continue
+
+    # Sort by msg_id descending (latest first)
+    valid_movies.sort(key=lambda x: x[1], reverse=True)
+
+    total_pages = math.ceil(len(valid_movies) / 20)
     if page < 1 or page > total_pages:
         await message.reply_text(f"❌ Page not found. Total pages: {total_pages}")
         return
 
     start = (page - 1) * 20
     end = start + 20
-    page_movies = movies[start:end]
-    text = f"📽️ Movies (Page {page}/{total_pages})\n\n"
+    page_movies = valid_movies[start:end]
 
-    for i, title in enumerate(page_movies, start=start + 1):
+    text = f"📽️ Valid Movies (Page {page}/{total_pages})\n\n"
+    for i, (title, _) in enumerate(page_movies, start=start + 1):
         text += f"{i}. {title.title()}\n"
 
     await message.reply_text(text)
