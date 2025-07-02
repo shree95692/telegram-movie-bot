@@ -294,7 +294,22 @@ async def add_movie_cmd(client, message: Message):
                     seen.add(uid)
                     final.append((ch, msg_id))
 
-            movie_db[key] = final[0] if len(final) == 1 else final
+            existing_entries = movie_db.get(key, [])
+if isinstance(existing_entries, tuple):
+    existing_entries = [existing_entries]
+elif not isinstance(existing_entries, list):
+    existing_entries = []
+
+combined = final + existing_entries
+seen = set()
+merged = []
+for ch, msg_id in combined:
+    uid = f"{ch}_{msg_id}"
+    if uid not in seen:
+        seen.add(uid)
+        merged.append((ch, msg_id))
+
+movie_db[key] = merged[0] if len(merged) == 1 else merged
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
