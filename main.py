@@ -61,14 +61,16 @@ EXTRA_PHRASES = [
 ]
 
 def clean_title(title):
-    title = title.lower()
+    title = title.lower()  # 🔽 Convert to lowercase
+
     for phrase in EXTRA_PHRASES:
-        title = title.replace(phrase, "")
-    title = re.sub(r'.*?', '', title)        # remove (2023), (Hindi)
-    title = re.sub(r'.*?', '', title)        # remove [S01], [Hindi]
-    title = re.sub(r'\d{4}', '', title)          # remove 2023, 2024
-    title = re.sub(r'[^a-z0-9\s]', '', title)    # remove punctuation
-    title = re.sub(r'\s+', ' ', title).strip()   # normalize spacing
+        title = title.replace(phrase, "")  # ❌ Remove phrases like "hindi dubbed", "full movie", etc.
+
+    title = re.sub(r'\d{4}', '', title)      # ❌ Removes things like (2023), (2011)
+    title = re.sub(r'\d{4}', '', title)          # ❌ Removes years like 2023, 2024 (even without brackets)
+    title = re.sub(r'[^a-z0-9\s]', '', title)    # ❌ Removes symbols like . , - ( ) etc.
+    title = re.sub(r'\s+', ' ', title).strip()   # ✅ Cleans extra spaces
+
     return title
 
 # ✅ Move this BELOW clean_title()
