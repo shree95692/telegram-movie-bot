@@ -109,7 +109,22 @@ if raw_db:
                 unique.append((ch, msg_id))
 
         if unique:
-            movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
+            existing = movie_db.get(clean_key, [])
+            if isinstance(existing, tuple):
+                existing = [existing]
+            elif not isinstance(existing, list):
+                existing = []
+
+            all_entries = unique + existing  # merge new and existing
+            seen = set()
+            merged = []
+            for ch, msg_id in all_entries:
+                uid = f"{ch}_{msg_id}"
+                if uid not in seen:
+                    seen.add(uid)
+                    merged.append((ch, msg_id))
+
+            movie_db[clean_key] = merged[0] if len(merged) == 1 else merged
 else:
     print("⚠️ No movie data loaded into memory.")
     movie_db = {}
