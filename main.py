@@ -77,7 +77,7 @@ if os.path.exists(DB_FILE):
         try:
     raw_db = json.load(f)
 except json.JSONDecodeError as e:
-    print(f"❌ JSON Decode Error: {e}")
+    print(f"❌ JSON Decode Error while reading DB: {e}")
     raw_db = {}
 
     movie_db = {}
