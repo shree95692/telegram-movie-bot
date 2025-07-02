@@ -99,35 +99,26 @@ if raw_db:
             if match:
                 entries.append(("@" + match.group(1), int(match.group(2))))
 
-        # Remove duplicates
+        # ✅ Merge with existing entries
+        existing = movie_db.get(clean_key, [])
+        if isinstance(existing, tuple):
+            existing = [existing]
+        elif not isinstance(existing, list):
+            existing = []
+
+        combined = existing + entries
+
+        # ✅ Remove duplicates
         seen = set()
         unique = []
-        for ch, msg_id in entries:
+        for ch, msg_id in combined:
             uid = f"{ch}_{msg_id}"
             if uid not in seen:
                 seen.add(uid)
                 unique.append((ch, msg_id))
 
         if unique:
-            existing = movie_db.get(clean_key, [])
-            if isinstance(existing, tuple):
-                existing = [existing]
-            elif not isinstance(existing, list):
-                existing = []
-
-            all_entries = unique + existing  # merge new and existing
-            seen = set()
-            merged = []
-            for ch, msg_id in all_entries:
-                uid = f"{ch}_{msg_id}"
-                if uid not in seen:
-                    seen.add(uid)
-                    merged.append((ch, msg_id))
-
-            movie_db[clean_key] = merged[0] if len(merged) == 1 else merged
-else:
-    print("⚠️ No movie data loaded into memory.")
-    movie_db = {}
+            movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
 
 print(f"📦 Total movies loaded: {len(movie_db)}")
 
