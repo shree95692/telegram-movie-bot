@@ -72,6 +72,8 @@ def clean_title(title):
     return title
 
 # ✅ Move this BELOW clean_title()
+movie_db = {}
+
 if os.path.exists(DB_FILE):
     with open(DB_FILE, "r") as f:
         try:
@@ -80,39 +82,32 @@ if os.path.exists(DB_FILE):
             print(f"❌ JSON Decode Error while reading DB: {e}")
             raw_db = {}
 
-    movie_db = {}
     for title, data in raw_db.items():
         clean_key = clean_title(title)
-        valid_entries = []
+        entries = []
 
-        if isinstance(data, tuple) and len(data) == 2:
-            valid_entries = [tuple(data)]
-        elif isinstance(data, list):
+        if isinstance(data, list):
             for item in data:
                 if isinstance(item, (list, tuple)) and len(item) == 2:
-                    valid_entries.append(tuple(item))
+                    entries.append(tuple(item))
+        elif isinstance(data, tuple) and len(data) == 2:
+            entries.append(data)
         elif isinstance(data, str):
             match = re.search(r"t\.me/(.+)/(\d+)", data)
             if match:
-                channel = "@" + match.group(1)
-                msg_id = int(match.group(2))
-                valid_entries.append((channel, msg_id))
+                entries.append(("@" + match.group(1), int(match.group(2))))
 
-        if clean_key in movie_db:
-            movie_db[clean_key].extend(valid_entries)
-        else:
-            movie_db[clean_key] = valid_entries
-
-    # Remove duplicates and normalize format
-    for key, entries in movie_db.items():
+        # Remove duplicates
         seen = set()
-        final = []
+        unique = []
         for ch, msg_id in entries:
             uid = f"{ch}_{msg_id}"
             if uid not in seen:
                 seen.add(uid)
-                final.append((ch, msg_id))
-        movie_db[key] = final[0] if len(final) == 1 else final
+                unique.append((ch, msg_id))
+
+        if unique:
+            movie_db[clean_key] = unique[0] if len(unique) == 1 else unique
 else:
     movie_db = {}
 
