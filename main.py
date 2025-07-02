@@ -287,9 +287,14 @@ async def add_movie_cmd(client, message: Message):
     ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"])
 )
 async def search_movie(client, message: Message):
-    query = message.text.lower().strip()
+    query = message.text.strip()
+
+    # Skip if it's a command or empty
+    if not query or query.startswith("/"):
+        return
+
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
-    if query in greetings:
+    if query.lower() in greetings:
         await message.reply_text("Hello 👋")
         return
 
