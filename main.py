@@ -79,17 +79,36 @@ if os.path.exists(DB_FILE):
     movie_db = {}
     for title, data in raw_db.items():
         clean_key = clean_title(title)
+        valid_entries = []
+
+        if isinstance(data, tuple) and len(data) == 2:
+            valid_entries = [tuple(data)]
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    valid_entries.append(tuple(item))
+        elif isinstance(data, str):
+            match = re.search(r"t\.me/(.+)/(\d+)", data)
+            if match:
+                channel = "@" + match.group(1)
+                msg_id = int(match.group(2))
+                valid_entries.append((channel, msg_id))
+
         if clean_key in movie_db:
-            existing = movie_db[clean_key]
-            if isinstance(existing, list):
-                if isinstance(data, list):
-                    movie_db[clean_key] = existing + data
-                else:
-                    movie_db[clean_key] = existing + [data]
-            else:
-                movie_db[clean_key] = [existing] + (data if isinstance(data, list) else [data])
+            movie_db[clean_key].extend(valid_entries)
         else:
-            movie_db[clean_key] = data
+            movie_db[clean_key] = valid_entries
+
+    # Remove duplicates and normalize format
+    for key, entries in movie_db.items():
+        seen = set()
+        final = []
+        for ch, msg_id in entries:
+            uid = f"{ch}_{msg_id}"
+            if uid not in seen:
+                seen.add(uid)
+                final.append((ch, msg_id))
+        movie_db[key] = final[0] if len(final) == 1 else final
 else:
     movie_db = {}
 
