@@ -114,6 +114,8 @@ else:
     print("⚠️ No movie data loaded into memory.")
     movie_db = {}
 
+print(f"📦 Total movies loaded: {len(movie_db)}")
+
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def save_db():
