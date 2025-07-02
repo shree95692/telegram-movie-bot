@@ -117,6 +117,9 @@ else:
 bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 def save_db():
+    if not movie_db:
+        print("⚠️ movie_db is empty. Skipping save to avoid overwriting backup.")
+        return
     with open(DB_FILE, "w", encoding="utf-8") as f:
         def get_latest_msg_id(entry):
             entries = []
