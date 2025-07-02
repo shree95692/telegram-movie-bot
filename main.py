@@ -54,7 +54,6 @@ def restore_db_from_github():
 
 # ✅ Always restore before building DB
 restore_db_from_github()
-print(f"📦 Total movies loaded: {len(movie_db)}")
 
 EXTRA_PHRASES = [
     "in hindi", "hindi dubbed", "south movie", "movie", "drama",
