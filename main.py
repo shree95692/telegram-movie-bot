@@ -157,7 +157,7 @@ def push_to_github(content):
     print("📤 GitHub push status:", response.status_code)
 
 def extract_title(text):
-    match = re.search(r'🎬\s*(?:Title\s*:)?\s*(.+)', text, re.IGNORECASE)
+    match = re.search(r'[🎬🎥🗨️🔰⭐📽️]\s*(?:title\s*:)?\s*(.+)', text, re.IGNORECASE)
     if match:
         return clean_title(match.group(1))
     return None
