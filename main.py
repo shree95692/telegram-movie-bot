@@ -52,8 +52,8 @@ def restore_db_from_github():
     except Exception as e:
         print("Restore failed:", e)
 
-if not os.path.exists(DB_FILE):
-    restore_db_from_github()
+# ✅ Always restore before building DB
+restore_db_from_github()
 
 EXTRA_PHRASES = [
     "in hindi", "hindi dubbed", "south movie", "movie", "drama",
