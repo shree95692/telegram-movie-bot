@@ -378,8 +378,8 @@ async def new_post(client, message: Message):
         if title and len(title.strip()) >= 2:
             def normalize_title(title):
                 title = title.lower()
-                title = re.sub(r'\(\d{4}\)', '', title)  # remove (2023)
-                title = re.sub(r'\d{4}', '', title)       # remove 2023
+                title = re.sub(r'\d{4}', '', title)
+                title = re.sub(r'\d{4}', '', title)
                 title = re.sub(r'\s+', ' ', title).strip()
                 return title
 
