@@ -394,6 +394,7 @@ async def search_movie(client, message: Message):
             )
 @bot.on_message(filters.channel)
 async def new_post(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
     text = (message.text or message.caption) or ""
     chat_username = f"@{message.chat.username}"
 
