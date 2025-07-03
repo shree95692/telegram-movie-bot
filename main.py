@@ -140,35 +140,38 @@ def save_db():
     if not movie_db:
         print("⚠️ movie_db is empty. Skipping save to avoid overwriting backup.")
         return
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        def format_entry(entry):
-            if isinstance(entry, list):
-                # ✅ Single post: ["@channel", msg_id]
-                if len(entry) == 2 and all(isinstance(i, (str, int)) for i in entry):
-                    return entry
-                # ✅ Multiple posts: [["@channel", msg_id], ["@channel2", msg_id2]]
-                elif all(isinstance(i, (list, tuple)) and len(i) == 2 for i in entry):
-                    return [list(i) for i in entry]
-            elif isinstance(entry, tuple) and len(entry) == 2:
-                return list(entry)
+
+    def format_entry(entry):
+        # ✅ Flat entry like ["@channel", msg_id]
+        if isinstance(entry, list) and len(entry) == 2 and all(isinstance(i, (str, int)) for i in entry):
             return entry
+        # ✅ Multi-posts like [["@channel", msg_id], ["@channel2", msg_id2]]
+        elif isinstance(entry, list) and all(isinstance(i, (list, tuple)) and len(i) == 2 for i in entry):
+            return [list(i) for i in entry]
+        # ✅ Tuple like ("@channel", msg_id)
+        elif isinstance(entry, tuple) and len(entry) == 2:
+            return list(entry)
+        return entry  # Fallback (rare)
 
-        def get_latest_msg_id(entry):
-            entries = []
-            if isinstance(entry, list):
-                entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
-            elif isinstance(entry, tuple) and len(entry) == 2:
-                entries = [entry]
-            msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
-            return max(msg_ids, default=0)
+    def get_latest_msg_id(entry):
+        entries = []
+        if isinstance(entry, list):
+            entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
+        elif isinstance(entry, tuple) and len(entry) == 2:
+            entries = [entry]
+        msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
+        return max(msg_ids, default=0)
 
-        # Sort by latest message ID
-        sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
-        formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
+    # ✅ Sort by latest message id (descending)
+    sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
+    # ✅ Format entries
+    formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
 
-        # ✅ Dump compact JSON
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        # ✅ Compact one-liner per entry
         json.dump(formatted_db, f, ensure_ascii=False, indent=2, separators=(',', ': '))
 
+    # ✅ Push to GitHub
     if GITHUB_PAT:
         try:
             with open(DB_FILE, "rb") as f:
