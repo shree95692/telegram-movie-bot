@@ -143,9 +143,12 @@ def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
         def format_entry(entry):
             if isinstance(entry, list):
-                if len(entry) == 1:
-                    return entry[0]  # ["@channel", msg_id]
-                return entry        # [["@channel1", msg_id1], ["@channel2", msg_id2]]
+                # ✅ Agar ye ek flat ["@channel", msg_id] hai
+                if len(entry) == 2 and all(isinstance(i, (str, int)) for i in entry):
+                    return entry
+                # ✅ Agar ye multiple links hain: [["@channel1", id1], ["@channel2", id2]]
+                elif all(isinstance(i, (list, tuple)) and len(i) == 2 for i in entry):
+                    return [list(i) for i in entry]
             elif isinstance(entry, tuple) and len(entry) == 2:
                 return list(entry)
             return entry
@@ -161,7 +164,7 @@ def save_db():
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
         formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
-        json.dump(formatted_db, f, ensure_ascii=False, indent=2, separators=(',', ': '))  # 🔧 Compact one-line JSON
+        json.dump(formatted_db, f, ensure_ascii=False, indent=2, separators=(',', ': '))  # ✅ Each movie one line, compact
 
     if GITHUB_PAT:
         try:
