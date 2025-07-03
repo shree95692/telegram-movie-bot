@@ -437,7 +437,7 @@ async def new_post(client, message: Message):
                     seen.add(uid)
                     final.append((ch, msg_id))
 
-            movie_db[key] = final[0] if len(final) == 1 else final
+            movie_db[key] = final if len(final) > 1 else [final[0]]
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
