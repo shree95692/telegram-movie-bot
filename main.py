@@ -144,8 +144,8 @@ def save_db():
         def format_entry(entry):
             if isinstance(entry, list):
                 if len(entry) == 1:
-                    return entry[0]  # Save as ["@channel", msg_id]
-                return entry        # Save as list of posts
+                    return entry[0]  # ["@channel", msg_id]
+                return entry        # [["@channel1", msg_id1], ["@channel2", msg_id2]]
             elif isinstance(entry, tuple) and len(entry) == 2:
                 return list(entry)
             return entry
@@ -161,7 +161,7 @@ def save_db():
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
         formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
-        json.dump(formatted_db, f, ensure_ascii=False, indent=2)
+        json.dump(formatted_db, f, ensure_ascii=False, separators=(',', ':'))  # 🔧 Compact one-line JSON
 
     if GITHUB_PAT:
         try:
