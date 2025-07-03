@@ -89,9 +89,12 @@ if raw_db:
         entries = []
 
         if isinstance(data, list):
-            for item in data:
-                if isinstance(item, (list, tuple)) and len(item) == 2:
-                    entries.append(tuple(item))
+            if len(data) == 2 and all(isinstance(i, str) for i in data):
+                entries.append(tuple(data))
+            else:
+                for item in data:
+                    if isinstance(item, list) and len(item) == 2:
+                        entries.append(tuple(item))
         elif isinstance(data, tuple) and len(data) == 2:
             entries.append(data)
         elif isinstance(data, str):
@@ -115,7 +118,7 @@ if raw_db:
             elif not isinstance(existing, list):
                 existing = []
 
-            all_entries = unique + existing  # merge new and existing
+            all_entries = unique + existing
             seen = set()
             merged = []
             for ch, msg_id in all_entries:
@@ -124,7 +127,7 @@ if raw_db:
                     seen.add(uid)
                     merged.append((ch, msg_id))
 
-            movie_db[clean_key] = merged[0] if len(merged) == 1 else merged
+            movie_db[clean_key] = merged if len(merged) > 1 else [merged[0]]
 else:
     print("⚠️ No movie data loaded into memory.")
     movie_db = {}
