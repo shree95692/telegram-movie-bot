@@ -238,6 +238,7 @@ async def init_channels(client, message: Message):
 
 @bot.on_message(filters.command("list_movies"))
 async def list_movies(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
     page = 1
     try:
         args = message.text.split()
