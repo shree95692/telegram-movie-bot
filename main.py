@@ -210,6 +210,7 @@ def extract_title(text):
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
     await message.reply_text("Hi! Mujhe koi bhi movie ka naam bhejo, mai dhoondhne ki koshish karunga.")
 
 @bot.on_message(filters.command("register_alert"))
