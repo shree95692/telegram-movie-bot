@@ -459,7 +459,23 @@ async def new_post(client, message: Message):
                     seen.add(uid)
                     merged.append((ch, msg_id))
 
-            movie_db[clean_title(title)] = merged[0] if len(merged) == 1 else merged
+            key = clean_title(title)
+existing = movie_db.get(key, [])
+if isinstance(existing, tuple):
+    existing = [existing]
+elif not isinstance(existing, list):
+    existing = []
+
+combined = merged + existing
+seen = set()
+final = []
+for ch, msg_id in combined:
+    uid = f"{ch}_{msg_id}"
+    if uid not in seen:
+        seen.add(uid)
+        final.append((ch, msg_id))
+
+movie_db[key] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
