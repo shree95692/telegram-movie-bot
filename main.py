@@ -295,7 +295,7 @@ async def add_movie_cmd(client, message: Message):
                     seen.add(uid)
                     merged.append((ch, msg))
 
-            movie_db[key] = merged[0] if len(merged) == 1 else merged
+            movie_db[key] = merged if len(merged) > 1 else merged[0]
             save_db()
             await message.reply_text(f"✅ Added manually: {title}")
         else:
