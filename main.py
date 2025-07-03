@@ -286,6 +286,8 @@ async def list_movies(client, message: Message):
 
 @bot.on_message(filters.command("add_movie"))
 async def add_movie_cmd(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
+
     if message.from_user.id != 5163916480:
         await message.reply_text("❌ You are not authorized to use this command.")
         return
