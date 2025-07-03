@@ -161,7 +161,7 @@ def save_db():
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
         formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
-        json.dump(formatted_db, f, ensure_ascii=False, separators=(',', ':'))  # 🔧 Compact one-line JSON
+        json.dump(formatted_db, f, ensure_ascii=False, indent=2, separators=(',', ': '))  # 🔧 Compact one-line JSON
 
     if GITHUB_PAT:
         try:
