@@ -222,6 +222,7 @@ async def register_alert(client, message: Message):
 
 @bot.on_message(filters.command("init_channels"))
 async def init_channels(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
     errors = []
 
     try:
