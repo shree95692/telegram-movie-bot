@@ -214,6 +214,7 @@ async def start_cmd(client, message: Message):
 
 @bot.on_message(filters.command("register_alert"))
 async def register_alert(client, message: Message):
+    await asyncio.sleep(0.9)  # ✅ Delay added
     try:
         await client.send_message(ALERT_CHANNEL, "✅ Alert channel registered successfully!")
         await message.reply_text("Alert channel registered.")
