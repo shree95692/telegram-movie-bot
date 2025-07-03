@@ -138,17 +138,27 @@ def save_db():
         print("⚠️ movie_db is empty. Skipping save to avoid overwriting backup.")
         return
     with open(DB_FILE, "w", encoding="utf-8") as f:
+        def format_entry(entry):
+            if isinstance(entry, list):
+                if len(entry) == 1:
+                    return entry[0]  # Save as ["@channel", msg_id]
+                return entry        # Save as list of posts
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                return list(entry)
+            return entry
+
         def get_latest_msg_id(entry):
             entries = []
-            if isinstance(entry, tuple) and len(entry) == 2:
-                entries = [entry]
-            elif isinstance(entry, list):
+            if isinstance(entry, list):
                 entries = [e for e in entry if isinstance(e, (list, tuple)) and len(e) == 2]
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                entries = [entry]
             msg_ids = [msg_id for _, msg_id in entries if isinstance(msg_id, int)]
             return max(msg_ids, default=0)
 
         sorted_db = dict(sorted(movie_db.items(), key=lambda item: get_latest_msg_id(item[1]), reverse=True))
-        json.dump(sorted_db, f, ensure_ascii=False, indent=2)  # ✅ Always valid
+        formatted_db = {k: format_entry(v) for k, v in sorted_db.items()}
+        json.dump(formatted_db, f, ensure_ascii=False, indent=2)
 
     if GITHUB_PAT:
         try:
