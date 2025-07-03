@@ -421,61 +421,23 @@ async def new_post(client, message: Message):
                 except Exception as e:
                     print("⚠️ Duplicate alert send failed:", e)
 
-            existing = movie_db.get(clean_title(title), [])
-
-            # Normalize existing format
-            normalized = []
-            if isinstance(existing, tuple):
-                normalized = [existing]
-            elif isinstance(existing, list):
-                for e in existing:
-                    if isinstance(e, (list, tuple)) and len(e) == 2:
-                        normalized.append(tuple(e))
-
-            # Add new post to the top
-            normalized.insert(0, (chat_username, message.id))
-
-            # Remove duplicates
-            seen = set()
-            final = []
-            for ch, msg_id in normalized:
-                key = f"{ch}_{msg_id}"
-                if key not in seen:
-                    seen.add(key)
-                    final.append((ch, msg_id))
-
-            existing = movie_db.get(clean_title(title), [])
+            key = clean_title(title)
+            existing = movie_db.get(key, [])
             if isinstance(existing, tuple):
                 existing = [existing]
             elif not isinstance(existing, list):
                 existing = []
 
-            combined = final + existing
+            combined = [(chat_username, message.id)] + existing
             seen = set()
-            merged = []
+            final = []
             for ch, msg_id in combined:
                 uid = f"{ch}_{msg_id}"
                 if uid not in seen:
                     seen.add(uid)
-                    merged.append((ch, msg_id))
+                    final.append((ch, msg_id))
 
-            key = clean_title(title)
-existing = movie_db.get(key, [])
-if isinstance(existing, tuple):
-    existing = [existing]
-elif not isinstance(existing, list):
-    existing = []
-
-combined = merged + existing
-seen = set()
-final = []
-for ch, msg_id in combined:
-    uid = f"{ch}_{msg_id}"
-    if uid not in seen:
-        seen.add(uid)
-        final.append((ch, msg_id))
-
-movie_db[key] = final[0] if len(final) == 1 else final
+            movie_db[key] = final[0] if len(final) == 1 else final
             save_db()
             print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
 
