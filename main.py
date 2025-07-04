@@ -338,10 +338,9 @@ async def add_movie_cmd(client, message: Message):
     ~filters.command(["start", "register_alert", "init_channels", "list_movies", "add_movie"])
 )
 async def search_movie(client, message: Message):
-    await asyncio.sleep(0.9)  # ✅ Delay added
-    query = message.text.strip()
+    await asyncio.sleep(0.9)
 
-    # Skip if it's a command or empty
+    query = message.text.strip()
     if not query or query.startswith("/"):
         return
 
@@ -351,11 +350,16 @@ async def search_movie(client, message: Message):
         return
 
     query_clean = clean_title(query)
-    matches = []
 
+    # ✅ Use similarity scoring
+    def similarity(a, b):
+        return difflib.SequenceMatcher(None, a, b).ratio()
+
+    scored_matches = []
     for title, data in movie_db.items():
         title_clean = clean_title(title)
-        if query_clean in title_clean or title_clean in query_clean:
+        score = similarity(query_clean, title_clean)
+        if score >= 0.4:  # minimum matching threshold
             entries = []
             if isinstance(data, tuple):
                 entries = [data]
@@ -363,12 +367,15 @@ async def search_movie(client, message: Message):
                 entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
 
             for ch, msg_id in entries:
-                matches.append((title, ch, msg_id))
+                scored_matches.append((score, title, ch, msg_id))
+
+    # ✅ Sort best matches first
+    scored_matches.sort(reverse=True)
 
     valid_results = []
     to_remove = []
 
-    for title, ch, msg_id in matches[:5]:
+    for _, title, ch, msg_id in scored_matches[:5]:
         try:
             msg = await client.get_messages(ch, msg_id)
             if msg and (msg.text or msg.caption):
