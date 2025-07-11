@@ -362,26 +362,27 @@ async def search_movie(client, message: Message):
                 entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
 
             valid_results = []
-            to_remove = []
+            valid_entries = []
 
             for ch, msg_id in entries:
                 try:
                     msg = await client.get_messages(ch, msg_id)
                     if msg and (msg.text or msg.caption):
                         valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-                    else:
-                        to_remove.append(title)
+                        valid_entries.append((ch, msg_id))
                 except:
-                    to_remove.append(title)
+                    continue
 
-            for title in to_remove:
-                movie_db.pop(title, None)
-            if to_remove:
+            if valid_entries:
+                movie_db[clean_title(title)] = valid_entries if len(valid_entries) > 1 else [valid_entries[0]]
                 save_db()
 
             if valid_results:
                 await message.reply_text("🎬 Movie found:\n" + "\n".join(valid_results))
                 return  # ✅ exact match mil gaya, fuzzy use nahi hoga
+            else:
+                movie_db.pop(clean_title(title), None)
+                save_db()
 
     # ✅ If no exact match, use similarity scoring
     def similarity(a, b):
@@ -401,25 +402,25 @@ async def search_movie(client, message: Message):
             for ch, msg_id in entries:
                 scored_matches.append((score, title, ch, msg_id))
 
-    # ✅ Sort best matches first
     scored_matches.sort(reverse=True)
 
     valid_results = []
-    to_remove = []
+    valid_entries_by_title = {}
 
     for _, title, ch, msg_id in scored_matches[:5]:
         try:
             msg = await client.get_messages(ch, msg_id)
             if msg and (msg.text or msg.caption):
                 valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-            else:
-                to_remove.append(title)
+                clean_key = clean_title(title)
+                valid_entries_by_title.setdefault(clean_key, []).append((ch, msg_id))
         except:
-            to_remove.append(title)
+            continue
 
-    for title in to_remove:
-        movie_db.pop(title, None)
-    if to_remove:
+    # ✅ Update database with only valid links
+    for clean_key, entries in valid_entries_by_title.items():
+        movie_db[clean_key] = entries if len(entries) > 1 else [entries[0]]
+    if valid_entries_by_title:
         save_db()
 
     if valid_results:
