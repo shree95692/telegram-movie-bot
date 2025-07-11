@@ -352,7 +352,38 @@ async def search_movie(client, message: Message):
 
     query_clean = clean_title(query)
 
-    # ✅ Use similarity scoring
+    # ✅ First: Exact match check
+    for title, data in movie_db.items():
+        if clean_title(title) == query_clean:
+            entries = []
+            if isinstance(data, tuple):
+                entries = [data]
+            elif isinstance(data, list):
+                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
+
+            valid_results = []
+            to_remove = []
+
+            for ch, msg_id in entries:
+                try:
+                    msg = await client.get_messages(ch, msg_id)
+                    if msg and (msg.text or msg.caption):
+                        valid_results.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+                    else:
+                        to_remove.append(title)
+                except:
+                    to_remove.append(title)
+
+            for title in to_remove:
+                movie_db.pop(title, None)
+            if to_remove:
+                save_db()
+
+            if valid_results:
+                await message.reply_text("🎬 Movie found:\n" + "\n".join(valid_results))
+                return  # ✅ exact match mil gaya, fuzzy use nahi hoga
+
+    # ✅ If no exact match, use similarity scoring
     def similarity(a, b):
         return difflib.SequenceMatcher(None, a, b).ratio()
 
@@ -360,7 +391,7 @@ async def search_movie(client, message: Message):
     for title, data in movie_db.items():
         title_clean = clean_title(title)
         score = similarity(query_clean, title_clean)
-        if score >= 0.4:  # minimum matching threshold
+        if score >= 0.4:
             entries = []
             if isinstance(data, tuple):
                 entries = [data]
