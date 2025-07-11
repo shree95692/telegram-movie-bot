@@ -352,6 +352,16 @@ async def search_movie(client, message: Message):
 
     query_clean = clean_title(query)
 
+    # ✅ Check for bad format (query is too noisy or unnecessary words)
+    if len(query_clean) < 3 or len(query_clean.split()) < len(query.strip().split()):
+        await message.reply_text(
+            f"❌ {query}\n"
+            f"✅ Jurassic World 2\n"
+            f"✅ Jurassic World\n"
+            f"✅ The Lost World"
+        )
+        return
+
     # ✅ First: Exact match check
     for title, data in movie_db.items():
         if clean_title(title) == query_clean:
