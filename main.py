@@ -352,10 +352,15 @@ async def search_movie(client, message: Message):
 
     query_clean = clean_title(query)
 
-    # ✅ Exact match
+    # ✅ Exact match check
     for title, data in movie_db.items():
         if clean_title(title) == query_clean:
-            entries = [data] if isinstance(data, tuple) else data
+            entries = []
+            if isinstance(data, tuple):
+                entries = [data]
+            elif isinstance(data, list):
+                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
+
             valid_results = []
             valid_entries = []
 
@@ -379,7 +384,7 @@ async def search_movie(client, message: Message):
                 movie_db.pop(clean_title(title), None)
                 save_db()
 
-    # ✅ Fuzzy match
+    # ✅ Fuzzy match check
     def similarity(a, b):
         return difflib.SequenceMatcher(None, a, b).ratio()
 
@@ -388,7 +393,12 @@ async def search_movie(client, message: Message):
         title_clean = clean_title(title)
         score = similarity(query_clean, title_clean)
         if score >= 0.4:
-            entries = [data] if isinstance(data, tuple) else data
+            entries = []
+            if isinstance(data, tuple):
+                entries = [data]
+            elif isinstance(data, list):
+                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
+
             for ch, msg_id in entries:
                 scored_matches.append((score, title, ch, msg_id))
 
@@ -412,23 +422,18 @@ async def search_movie(client, message: Message):
     if valid_entries_by_title:
         save_db()
 
-    # ✅ Handle not found or bad format
-    if valid_results and max(score for score, _ in valid_results) >= 0.5:
+    # ✅ Strict fuzzy threshold
+    if valid_results and max(score for score, _ in valid_results) >= 0.8:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(link for _, link in valid_results))
     else:
-        reply_text = (
+        await message.reply_text(
             f"❌ Movie nahi mili bhai 😔\n"
-            f"❌ {query}\n"
-            f"✅ Bahubali 2\n"
-            f"✅ Bahubali\n"
-            f"✅ The Lost World\n"
-            "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
-            "📩 Request mil gayi hai!\n"
-            "⏳ 5-6 ghante me upload ho jayegi.\n"
-            "🍿 Tab tak popcorn leke chill maro!"
+            f"❌ {query} ✅ Bahubali 2\n"
+            f"🔍 Ek baar naam ki spelling Google se check kar lo.\n"
+            f"📩 Request mil gayi hai!\n"
+            f"⏳ 5-6 ghante me upload ho jayegi.\n"
+            f"🍿 Tab tak popcorn leke chill maro!"
         )
-        await message.reply_text(reply_text)
-
         if message.from_user:
             await client.send_message(
                 ALERT_CHANNEL,
