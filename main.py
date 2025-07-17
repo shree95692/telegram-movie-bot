@@ -333,6 +333,7 @@ async def add_movie_cmd(client, message: Message):
     except:
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 @bot.on_message(
+@bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
     filters.text &
@@ -352,25 +353,10 @@ async def search_movie(client, message: Message):
 
     query_clean = clean_title(query)
 
-    # ✅ Check for bad format (query is too noisy or unnecessary words)
-    if len(query_clean) < 3 or len(query_clean.split()) < len(query.strip().split()):
-        await message.reply_text(
-            f"❌ {query}\n"
-            f"✅ Jurassic World 2\n"
-            f"✅ Jurassic World\n"
-            f"✅ The Lost World"
-        )
-        return
-
-    # ✅ First: Exact match check
+    # ✅ Exact match
     for title, data in movie_db.items():
         if clean_title(title) == query_clean:
-            entries = []
-            if isinstance(data, tuple):
-                entries = [data]
-            elif isinstance(data, list):
-                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
-
+            entries = data if isinstance(data, list) else [data]
             valid_results = []
             valid_entries = []
 
@@ -394,7 +380,7 @@ async def search_movie(client, message: Message):
                 movie_db.pop(clean_title(title), None)
                 save_db()
 
-    # ✅ Fuzzy match if no exact match
+    # ✅ Fuzzy match if no exact
     def similarity(a, b):
         return difflib.SequenceMatcher(None, a, b).ratio()
 
@@ -402,13 +388,8 @@ async def search_movie(client, message: Message):
     for title, data in movie_db.items():
         title_clean = clean_title(title)
         score = similarity(query_clean, title_clean)
-        if score >= 0.4:
-            entries = []
-            if isinstance(data, tuple):
-                entries = [data]
-            elif isinstance(data, list):
-                entries = [entry for entry in data if isinstance(entry, (list, tuple)) and len(entry) == 2]
-
+        if score >= 0.5:
+            entries = data if isinstance(data, list) else [data]
             for ch, msg_id in entries:
                 scored_matches.append((score, title, ch, msg_id))
 
@@ -427,17 +408,17 @@ async def search_movie(client, message: Message):
         except:
             continue
 
-    # ✅ Update DB only with valid posts
     for clean_key, entries in valid_entries_by_title.items():
         movie_db[clean_key] = entries if len(entries) > 1 else [entries[0]]
     if valid_entries_by_title:
         save_db()
 
-    if valid_results and max(score for score, _ in valid_results) >= 0.5:
+    if valid_results:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(link for _, link in valid_results))
     else:
         await message.reply_text(
-            "❌ Movie nahi mili bhai 😔\n"
+            f"❌ Movie nahi mili bhai 😔\n"
+            f"❌ {query}   ✅ {query_clean.title()}\n"
             "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
             "📩 Request mil gayi hai!\n"
             "⏳ 5-6 ghante me upload ho jayegi.\n"
