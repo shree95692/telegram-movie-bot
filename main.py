@@ -333,7 +333,6 @@ async def add_movie_cmd(client, message: Message):
     except:
         await message.reply_text("❌ Usage: /add_movie Movie Name | https://t.me/channel/123")
 @bot.on_message(
-@bot.on_message(
     filters.incoming &
     (filters.private | filters.group) &
     filters.text &
@@ -356,7 +355,7 @@ async def search_movie(client, message: Message):
     # ✅ Exact match
     for title, data in movie_db.items():
         if clean_title(title) == query_clean:
-            entries = data if isinstance(data, list) else [data]
+            entries = [data] if isinstance(data, tuple) else data
             valid_results = []
             valid_entries = []
 
@@ -380,7 +379,7 @@ async def search_movie(client, message: Message):
                 movie_db.pop(clean_title(title), None)
                 save_db()
 
-    # ✅ Fuzzy match if no exact
+    # ✅ Fuzzy match
     def similarity(a, b):
         return difflib.SequenceMatcher(None, a, b).ratio()
 
@@ -388,8 +387,8 @@ async def search_movie(client, message: Message):
     for title, data in movie_db.items():
         title_clean = clean_title(title)
         score = similarity(query_clean, title_clean)
-        if score >= 0.5:
-            entries = data if isinstance(data, list) else [data]
+        if score >= 0.4:
+            entries = [data] if isinstance(data, tuple) else data
             for ch, msg_id in entries:
                 scored_matches.append((score, title, ch, msg_id))
 
@@ -413,17 +412,23 @@ async def search_movie(client, message: Message):
     if valid_entries_by_title:
         save_db()
 
-    if valid_results:
+    # ✅ Handle not found or bad format
+    if valid_results and max(score for score, _ in valid_results) >= 0.5:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(link for _, link in valid_results))
     else:
-        await message.reply_text(
+        reply_text = (
             f"❌ Movie nahi mili bhai 😔\n"
-            f"❌ {query}   ✅ {query_clean.title()}\n"
+            f"❌ {query}\n"
+            f"✅ Bahubali 2\n"
+            f"✅ Bahubali\n"
+            f"✅ The Lost World\n"
             "🔍 Ek baar naam ki spelling Google se check kar lo.\n"
             "📩 Request mil gayi hai!\n"
             "⏳ 5-6 ghante me upload ho jayegi.\n"
             "🍿 Tab tak popcorn leke chill maro!"
         )
+        await message.reply_text(reply_text)
+
         if message.from_user:
             await client.send_message(
                 ALERT_CHANNEL,
