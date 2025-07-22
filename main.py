@@ -428,7 +428,7 @@ async def search_movie(client, message: Message):
     else:
         await message.reply_text(
             f"❌ Movie nahi mili bhai 😔\n"
-            f"❌ {query} ✅ Bahubali 2\n"
+            f"South movie bahubalii part 2 ❌ Bahubali 2 ✅\n"
             f"🔍 Ek baar naam ki spelling Google se check kar lo.\n"
             f"📩 Request mil gayi hai!\n"
             f"⏳ 5-6 ghante me upload ho jayegi.\n"
