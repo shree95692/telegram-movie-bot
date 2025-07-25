@@ -251,8 +251,8 @@ async def list_movies(client, message: Message):
     except:
         pass
 
-    valid_titles = list(movie_db.keys())
-    valid_titles.sort(reverse=True)  # Newest movie on top
+    # ✅ Latest added movies will be shown first
+    valid_titles = list(reversed(list(movie_db.keys())))
 
     total_pages = math.ceil(len(valid_titles) / 20)
     if page < 1 or page > total_pages:
