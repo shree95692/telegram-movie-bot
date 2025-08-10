@@ -70,6 +70,12 @@ def clean_title(title):
 
     title = re.sub(r'\d{4}', '', title)      # ❌ Removes things like (2023), (2011)
     title = re.sub(r'\d{4}', '', title)          # ❌ Removes years like 2023, 2024 (even without brackets)
+
+    # ✅ Normalize season / so / part formats to just the number
+    title = re.sub(r'\bseason\s*(\d+)\b', r'\1', title)
+    title = re.sub(r'\bso\s*(\d+)\b', r'\1', title)
+    title = re.sub(r'\bpart\s*(\d+)\b', r'\1', title)
+
     title = re.sub(r'[^a-z0-9\s]', '', title)    # ❌ Removes symbols like . , - ( ) etc.
     title = re.sub(r'\s+', ' ', title).strip()   # ✅ Cleans extra spaces
 
