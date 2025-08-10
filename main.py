@@ -339,7 +339,7 @@ async def search_movie(client, message: Message):
     query_clean = clean_title(query)
 
     # ✅ Exact match check
-    for title, data in movie_db.items():
+    for title, data in list(movie_db.items()):
         if clean_title(title) == query_clean:
             entries = []
             if isinstance(data, tuple):
