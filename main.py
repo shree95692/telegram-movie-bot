@@ -330,7 +330,7 @@ async def search_movie(client, message: Message):
     query = message.text.strip()
 
     # ✅ Ignore admin replies (but allow normal admin searches)
-    if message.from_user and message.from_user.id == 5163916480 and message.reply_to_message:
+    if message.from_user and message.from_user.id == ADMIN_ID and message.reply_to_message:
         return
 
     if not query or query.startswith("/"):
