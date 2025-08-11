@@ -330,11 +330,10 @@ async def search_movie(client, message: Message):
 
     query = message.text.strip()
 
-    # ✅ Ignore admin replies in groups
-    print("DEBUG ADMIN:", message.from_user.id, ADMIN_ID, message.chat.type, bool(message.reply_to_message))
+    # ✅ Ignore admin replies in groups (safe check)
     if (
         message.chat.type in ["group", "supergroup"]  # sirf groups me check kare
-        and message.from_user
+        and getattr(message, "from_user", None)       # user object hona chahiye
         and message.from_user.id == ADMIN_ID
         and getattr(message, "reply_to_message", None) is not None
     ):
