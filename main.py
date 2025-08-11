@@ -328,16 +328,17 @@ async def add_movie_cmd(client, message: Message):
 async def search_movie(client, message: Message):
     await asyncio.sleep(0.9)
 
-    query = message.text.strip()
-
-    # ✅ Ignore admin replies in groups (safe check)
+    # ✅ Ignore admin replies in groups
     if (
-        message.chat.type in ["group", "supergroup"]  # sirf groups me check kare
-        and getattr(message, "from_user", None)       # user object hona chahiye
+        message.chat.type in ["group", "supergroup"]
+        and getattr(message, "from_user", None)
         and message.from_user.id == ADMIN_ID
-        and getattr(message, "reply_to_message", None) is not None
+        and hasattr(message, "reply_to_message")
+        and message.reply_to_message is not None
     ):
         return
+
+    query = message.text.strip()
 
     if not query or query.startswith("/"):
         return
