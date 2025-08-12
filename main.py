@@ -328,14 +328,18 @@ async def add_movie_cmd(client, message: Message):
 async def search_movie(client, message: Message):
     await asyncio.sleep(0.9)
 
-    # ✅ Ignore admin replies in groups
+    # ✅ Ignore admin/owner replies in groups
     if (
         message.chat.type in ["group", "supergroup"]
         and getattr(message, "from_user", None) is not None
-        and message.from_user.id == ADMIN_ID
         and getattr(message, "reply_to_message", None) is not None
     ):
-        return
+        try:
+            member = await client.get_chat_member(message.chat.id, message.from_user.id)
+            if message.from_user.id == ADMIN_ID or member.status == "creator":
+                return
+        except:
+            pass
 
     query = message.text.strip()
 
