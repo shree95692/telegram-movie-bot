@@ -450,14 +450,15 @@ async def new_post(client, message: Message):
     chat_username = f"@{message.chat.username}"
 
     if chat_username in CHANNELS:
-        title = extract_title(text)
-        if title and len(title.strip()) >= 2:
-            def normalize_title(title):
-                title = title.lower()
-                title = re.sub(r'\d{4}', '', title)
-                title = re.sub(r'\d{4}', '', title)
-                title = re.sub(r'\s+', ' ', title).strip()
-                return title
+        titles = extract_titles(text)
+        for title in titles:
+            if title and len(title.strip()) >= 2:
+                def normalize_title(title):
+                    title = title.lower()
+                    title = re.sub(r'\d{4}', '', title)
+                    title = re.sub(r'\d{4}', '', title)
+                    title = re.sub(r'\s+', ' ', title).strip()
+                    return title
 
             normalized_new = normalize_title(title)
             matching_titles = [t for t in movie_db if normalize_title(t) == normalized_new]
