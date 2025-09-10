@@ -210,11 +210,14 @@ def push_to_github(content):
     response = requests.put(url, headers=headers, json=data)
     print("📤 GitHub push status:", response.status_code)
 
-def extract_title(text):
-    match = re.search(r'[🎬🎥🗨️🔰⭐📽️]\s*(?:title\s*:)?\s*(.+)', text, re.IGNORECASE)
-    if match:
-        return clean_title(match.group(1))
-    return None
+def extract_titles(text):
+    matches = re.findall(r'(?:title\s*:)?\s*([^\n*]+)', text, re.IGNORECASE)
+    titles = []
+    for m in matches:
+        clean = clean_title(m)
+        if clean and len(clean) >= 2:
+            titles.append(clean)
+    return titles
 
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
