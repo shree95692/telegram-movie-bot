@@ -460,78 +460,80 @@ async def new_post(client, message: Message):
                     title = re.sub(r'\s+', ' ', title).strip()
                     return title
 
-            normalized_new = normalize_title(title)
-            matching_titles = [t for t in movie_db if normalize_title(t) == normalized_new]
+                normalized_new = normalize_title(title)
+                matching_titles = [t for t in movie_db if normalize_title(t) == normalized_new]
 
-            new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
+                new_link = f"https://t.me/{chat_username.strip('@')}/{message.id}"
 
-            valid_links = []
-            updated_entry = []
+                valid_links = []
+                updated_entry = []
 
-            for t in matching_titles:
-                data = movie_db.get(t)
-                entries = []
-                if isinstance(data, tuple):
-                    entries = [data]
-                elif isinstance(data, list):
-                    entries = [entry for entry in data if isinstance(entry, tuple) and len(entry) == 2]
+                for t in matching_titles:
+                    data = movie_db.get(t)
+                    entries = []
+                    if isinstance(data, tuple):
+                        entries = [data]
+                    elif isinstance(data, list):
+                        entries = [entry for entry in data if isinstance(entry, tuple) and len(entry) == 2]
 
-                for ch, msg_id in entries:
+                    for ch, msg_id in entries:
+                        try:
+                            msg = await client.get_messages(ch, msg_id)
+                            if msg:
+                                valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
+                                updated_entry.append((ch, msg_id))
+                        except Exception as e:
+                            print(f"⚠️ Fetch failed for {t}: {e}")
+
+                valid_links.append(new_link)
+                updated_entry.append((chat_username, message.id))
+
+                if len(valid_links) > 1:
+                    alert_text = (
+                        f"⚠️ Duplicate movie detected: {title.title()}\n\n"
+                        f"🔁 All related posts:\n" + "\n".join(valid_links)
+                    )
                     try:
-                        msg = await client.get_messages(ch, msg_id)
-                        if msg:
-                            valid_links.append(f"https://t.me/{ch.strip('@')}/{msg_id}")
-                            updated_entry.append((ch, msg_id))
+                        await client.send_message(ALERT_CHANNEL, alert_text)
                     except Exception as e:
-                        print(f"⚠️ Fetch failed for {t}: {e}")
+                        print("⚠️ Duplicate alert send failed:", e)
 
-            valid_links.append(new_link)
-            updated_entry.append((chat_username, message.id))
+                key = clean_title(title)
+                existing = movie_db.get(key, [])
+                if isinstance(existing, tuple):
+                    existing = [existing]
+                elif not isinstance(existing, list):
+                    existing = []
 
-            if len(valid_links) > 1:
-                alert_text = (
-                    f"⚠️ Duplicate movie detected: {title.title()}\n\n"
-                    f"🔁 All related posts:\n" + "\n".join(valid_links)
-                )
+                combined = [(chat_username, message.id)] + existing
+                seen = set()
+                final = []
+                for ch, msg_id in combined:
+                    uid = f"{ch}_{msg_id}"
+                    if uid not in seen:
+                        seen.add(uid)
+                        final.append((ch, msg_id))
+
+                movie_db[key] = final if len(final) > 1 else [final[0]]
+                save_db()
+                print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
+
                 try:
-                    await client.send_message(ALERT_CHANNEL, alert_text)
+                    await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
                 except Exception as e:
-                    print("⚠️ Duplicate alert send failed:", e)
-
-            key = clean_title(title)
-            existing = movie_db.get(key, [])
-            if isinstance(existing, tuple):
-                existing = [existing]
-            elif not isinstance(existing, list):
-                existing = []
-
-            combined = [(chat_username, message.id)] + existing
-            seen = set()
-            final = []
-            for ch, msg_id in combined:
-                uid = f"{ch}_{msg_id}"
-                if uid not in seen:
-                    seen.add(uid)
-                    final.append((ch, msg_id))
-
-            movie_db[key] = final if len(final) > 1 else [final[0]]
-            save_db()
-            print(f"✅ Saved: {title} -> {chat_username}/{message.id}")
-
-            try:
-                await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
-            except Exception as e:
-                await client.send_message(
-                    ALERT_CHANNEL,
-                    text=f"❗ Message send failed:\n{new_link}\nError: {e}"
-                )
-        else:
+                    await client.send_message(
+                        ALERT_CHANNEL,
+                        text=f"❗ Message send failed:\n{new_link}\nError: {e}"
+                    )
+        if not titles:
             await client.send_message(
                 ALERT_CHANNEL,
                 f"⚠️ Title detect nahi hua for post: https://t.me/{message.chat.username}/{message.id}"
             )
     else:
         print("⚠️ Unknown channel.")
+
+
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
