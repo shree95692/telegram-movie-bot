@@ -421,7 +421,7 @@ async def search_movie(client, message: Message):
         try:
             msg = await client.get_messages(ch, msg_id)
             if msg and (msg.text or msg.caption):
-                valid_results.append((score, f"https://t.me/{ch.strip('@')}/{msg_id}"))
+                valid_results.append((score, title, f"https://t.me/{ch.strip('@')}/{msg_id}"))
                 clean_key = clean_title(title)
                 valid_entries_by_title.setdefault(clean_key, []).append((ch, msg_id))
         except:
