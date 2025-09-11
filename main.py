@@ -433,7 +433,7 @@ async def search_movie(client, message: Message):
         save_db()
 
     # ✅ Strict fuzzy threshold
-    if valid_results and max(score for score, _ in valid_results) >= 0.8:
+    if valid_results and max(score for score, title, link in valid_results) >= 0.8:
         await message.reply_text("🎬 Matching movies:\n" + "\n".join(f"Title: {title.title()} → {link}" for score, title, link in valid_results))
     else:
         await message.reply_text(
