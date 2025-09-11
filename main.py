@@ -388,7 +388,7 @@ async def search_movie(client, message: Message):
                 save_db()
 
             if valid_results:
-                await message.reply_text("🎬 Movie found:\n" + "\n".join(valid_results))
+                await message.reply_text("🎬 Movie found:\n" + "\n".join(f"Title: {title.title()} → {link}" for link in valid_results))
                 return
             else:
                 movie_db.pop(clean_title(title), None)
