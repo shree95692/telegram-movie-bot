@@ -77,6 +77,11 @@ def clean_title(title):
     title = re.sub(r'\bso\s*(\d+)\b', r'\1', title)
     title = re.sub(r'\bpart\s*(\d+)\b', r'\1', title)
 
+    # ✅ Extra normalization for "chapter", "s01", "S01"
+    title = re.sub(r'\bchapter\s*(\d+)\b', r'\1', title)
+    title = re.sub(r'\bs0*(\d+)\b', r'\1', title)   # s01 → 1, s02 → 2
+    title = re.sub(r'\bep\s*(\d+)\b', r'\1', title) # episode → number (optional)
+
     title = re.sub(r'[^a-z0-9\s]', '', title)    # ❌ Removes symbols like . , - ( ) etc.
     title = re.sub(r'\s+', ' ', title).strip()   # ✅ Cleans extra spaces
 
