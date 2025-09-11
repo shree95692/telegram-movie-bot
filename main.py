@@ -211,10 +211,16 @@ def push_to_github(content):
     print("📤 GitHub push status:", response.status_code)
 
 def extract_titles(text):
-    matches = re.findall(r'(?:title\s*:)?\s*([^\n*]+)', text, re.IGNORECASE)
+    # "🎬 Title :" ke baad wala part alag-alag nikal lo
+    matches = re.findall(r'🎬\s*Title\s*:\s*([^🎬\n]+)', text, re.IGNORECASE)
     titles = []
     for m in matches:
         clean = clean_title(m)
+
+        # ❌ skip unwanted info
+        if any(x in clean.lower() for x in ["http", "https", "language", "print", "quality", "audio", "join", "backup"]):
+            continue
+
         if clean and len(clean) >= 2:
             titles.append(clean)
     return titles
