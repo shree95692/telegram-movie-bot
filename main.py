@@ -360,6 +360,12 @@ async def search_movie(client, message: Message):
             except:
                 pass
 
+    # ✅ Yaha query define karo
+    query = message.text.strip()
+
+    if not query or query.startswith("/"):
+        return
+
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
     if query.lower() in greetings:
         await message.reply_text("Hello 👋")
