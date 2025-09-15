@@ -342,12 +342,15 @@ async def add_movie_cmd(client, message: Message):
 async def search_movie(client, message: Message):
     await asyncio.sleep(0.9)
 
-    # ✅ Ignore admin/owner replies in groups
-    if (
-        message.chat.type in ["group", "supergroup"]
-        and getattr(message, "from_user", None) is not None
-        and getattr(message, "reply_to_message", None) is not None
-    ):
+    # ✅ Ignore group/admin replies in groups
+if (
+    message.chat.type in ["group", "supergroup"]
+    and getattr(message, "reply_to_message", None) is not None
+    and (
+        getattr(message, "from_user", None) is None  # sent as group (sender_chat)
+        or message.from_user.id == ADMIN_ID
+    )
+):
         try:
             member = await client.get_chat_member(message.chat.id, message.from_user.id)
             if message.from_user.id == ADMIN_ID or member.status == "creator":
