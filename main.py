@@ -346,22 +346,19 @@ async def search_movie(client, message: Message):
     if (
         message.chat.type in ["group", "supergroup"]
         and getattr(message, "reply_to_message", None) is not None
-        and (
-            getattr(message, "from_user", None) is None  # sent as group (sender_chat)
-            or message.from_user.id == ADMIN_ID
-        )
     ):
-        try:
-            member = await client.get_chat_member(message.chat.id, message.from_user.id)
-            if message.from_user.id == ADMIN_ID or member.status == "creator":
-                return
-        except:
+        # Agar group ke naam se bheja gaya (sender_chat) → ignore
+        if getattr(message, "sender_chat", None) is not None:
             return
 
-    query = message.text.strip()
-
-    if not query or query.startswith("/"):
-        return
+        # Agar from_user exist karta hai
+        if getattr(message, "from_user", None):
+            try:
+                member = await client.get_chat_member(message.chat.id, message.from_user.id)
+                if message.from_user.id == ADMIN_ID or member.status == "creator":
+                    return
+            except:
+                pass
 
     greetings = ["hi", "hello", "hii", "ok", "okay", "hey", "heyy"]
     if query.lower() in greetings:
