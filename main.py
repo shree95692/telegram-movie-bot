@@ -24,6 +24,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNELS = ["@stree2chaava2", "@jollyllb738", "@chaava2025"]
 ADMIN_ID = 5163916480
 FORWARD_CHANNEL = -1002512169097
+FORWARD_CHANNEL_2 = -1002662953991
 ALERT_CHANNEL = -1002661392627
 
 DB_FILE = "movie_db.json"
@@ -537,6 +538,7 @@ async def new_post(client, message: Message):
 
                 try:
                     await client.send_message(FORWARD_CHANNEL, f"🎬 New Movie Added: {title.title()}")
+                    await client.send_message(FORWARD_CHANNEL_2, f"🎬 New Movie Added: {title.title()}")
                 except Exception as e:
                     await client.send_message(
                         ALERT_CHANNEL,
