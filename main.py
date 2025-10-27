@@ -21,7 +21,7 @@ def home():
 API_ID = 25424751
 API_HASH = "a9f8c974b0ac2e8b5fce86b32567af6b"
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNELS = ["@stree2chaava2", "@jollyllb738", "@chaava2025"]
+CHANNELS = ["@stree2chaava2", "@hollywood_55", "@chaava2025"]
 ADMIN_ID = 5163916480
 FORWARD_CHANNEL = -1002512169097
 FORWARD_CHANNEL_2 = -1002662953991
